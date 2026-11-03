@@ -29,8 +29,8 @@ export function cx(...classes: (string | false | null | undefined)[]) {
 type Variante = "primaire" | "secondaire" | "fantome" | "danger" | "succes";
 
 const VARIANTES: Record<Variante, string> = {
-  primaire: "bg-brand-600 text-white shadow-sm hover:bg-brand-700",
-  secondaire: "border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900",
+  primaire: "bg-brand-600 text-white shadow-sm shadow-brand-900/10 hover:bg-brand-700",
+  secondaire: "border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900",
   fantome: "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
   danger: "text-rose-600 hover:bg-rose-50",
   succes: "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
@@ -44,7 +44,7 @@ const TAILLES = {
 
 export function classesBouton(variante: Variante = "primaire", taille: keyof typeof TAILLES = "md", extra?: string) {
   return cx(
-    "inline-flex items-center justify-center rounded-xl font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",
+    "inline-flex items-center justify-center rounded-lg font-semibold transition duration-150 disabled:cursor-not-allowed disabled:opacity-50",
     VARIANTES[variante],
     TAILLES[taille],
     extra
@@ -61,7 +61,7 @@ export function Bouton({
 }
 
 export function Carte({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div {...props} className={cx("rounded-2xl border border-slate-200 bg-white shadow-card", className)} />;
+  return <div {...props} className={cx("rounded-2xl border border-slate-200/90 bg-white shadow-card", className)} />;
 }
 
 export function BadgeStatut({ statut }: { statut: string }) {
@@ -105,13 +105,15 @@ export function Indicateur({
   valeur,
   detail,
   icone: Icone,
-  ton = "brand"
+  ton = "brand",
+  children
 }: {
   titre: string;
   valeur: React.ReactNode;
   detail?: React.ReactNode;
   icone?: LucideIcon;
   ton?: "brand" | "emerald" | "amber" | "rose" | "slate";
+  children?: React.ReactNode;
 }) {
   const tons = {
     brand: "bg-brand-50 text-brand-600",
@@ -121,16 +123,17 @@ export function Indicateur({
     slate: "bg-slate-100 text-slate-600"
   };
   return (
-    <Carte className="p-5">
+    <Carte className="p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm font-medium text-slate-500">{titre}</p>
         {Icone && (
-          <span className={cx("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", tons[ton])}>
-            <Icone className="h-5 w-5" aria-hidden />
+          <span className={cx("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", tons[ton])}>
+            <Icone className="h-[18px] w-[18px]" aria-hidden />
           </span>
         )}
       </div>
-      <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{valeur}</p>
+      <p className="mt-1.5 text-[1.75rem] font-bold leading-tight tracking-tight text-slate-900">{valeur}</p>
+      {children}
       {detail && <p className="mt-1 text-sm text-slate-500">{detail}</p>}
     </Carte>
   );
@@ -143,11 +146,11 @@ export function EnTete({ surtitre, titre, description, actions }: {
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        {surtitre && <p className="text-sm font-semibold text-brand-600">{surtitre}</p>}
-        <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{titre}</h1>
-        {description && <div className="mt-2 max-w-2xl text-base text-slate-600">{description}</div>}
+        {surtitre && <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">{surtitre}</p>}
+        <h1 className="mt-1 text-[1.75rem] font-bold leading-tight tracking-tight text-slate-900 sm:text-3xl">{titre}</h1>
+        {description && <div className="mt-1.5 max-w-3xl text-[15px] leading-relaxed text-slate-600">{description}</div>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
@@ -158,7 +161,7 @@ export function Chargement({ texte }: { texte: string }) {
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-slate-500">
       <Loader2 className="h-8 w-8 animate-spin text-brand-600" aria-hidden />
-      <p className="text-base">{texte}</p>
+      <p className="text-[15px]">{texte}</p>
     </div>
   );
 }
@@ -167,7 +170,7 @@ export function EcranErreur({ message }: { message: string }) {
   const router = useRouter();
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
-      <Carte className="w-full max-w-md p-8 text-center">
+      <Carte className="w-full max-w-md p-6 text-center sm:p-7">
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-rose-600">
           <AlertCircle className="h-6 w-6" aria-hidden />
         </span>
@@ -205,8 +208,8 @@ export function BarreNavigation({ admin = false }: { admin?: boolean }) {
   }
 
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/80 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
+    <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 shadow-sm shadow-slate-900/[0.02] backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-7xl items-center gap-5 px-4 sm:px-6">
         <Link href={admin ? "/admin" : "/dashboard"}><Logo /></Link>
         {!admin && (
           <nav className="hidden items-center gap-1 md:flex">
@@ -215,8 +218,8 @@ export function BarreNavigation({ admin = false }: { admin?: boolean }) {
                 key={href}
                 href={href}
                 className={cx(
-                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition",
-                  chemin === href ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  "flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold transition",
+                  chemin === href ? "bg-brand-50 text-brand-700" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
                 )}
               >
                 <Icone className="h-4 w-4" aria-hidden />
@@ -242,13 +245,13 @@ export function BarreNavigation({ admin = false }: { admin?: boolean }) {
         </div>
       </div>
       {!admin && (
-        <nav className="flex gap-1 overflow-x-auto border-t border-slate-100 px-4 py-2 md:hidden">
+        <nav className="flex gap-1 overflow-x-auto border-t border-slate-100 px-4 py-1.5 md:hidden">
           {NAV_AGENT.map(({ href, libelle, icone: Icone }) => (
             <Link
               key={href}
               href={href}
               className={cx(
-                "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold",
+                "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold",
                 chemin === href ? "bg-brand-50 text-brand-700" : "text-slate-600"
               )}
             >

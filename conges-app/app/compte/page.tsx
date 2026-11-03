@@ -40,18 +40,18 @@ export default function ComptePage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-brand-50 to-slate-50 px-4 py-12">
       <div className="w-full max-w-md">
-        <div className="mb-8 flex justify-center"><Logo /></div>
-        <Carte className="p-8">
+        <div className="mb-6 flex justify-center"><Logo /></div>
+        <Carte className="p-6 sm:p-7">
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
             <ShieldCheck className="h-6 w-6" aria-hidden />
           </span>
-          <h1 className="mt-5 text-2xl font-bold tracking-tight text-slate-900">Choisissez votre code personnel</h1>
-          <p className="mt-2 text-[15px] text-slate-600">
+          <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">Choisissez votre code personnel</h1>
+          <p className="mt-2 text-[15px] leading-relaxed text-slate-600">
             Remplacez le code provisoire par un code que vous seul connaissez (8 caractères minimum).
             Ne le communiquez à personne.
           </p>
 
-          <form onSubmit={changerCode} className="mt-6 space-y-5">
+          <form onSubmit={changerCode} className="mt-5 space-y-4">
             <label className="block">
               <span className="libelle">Code actuel</span>
               <input type="password" autoComplete="current-password" value={ancien}

@@ -137,7 +137,7 @@ export default function DashboardPage() {
   return (
     <>
       <BarreNavigation />
-      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
         <EnTete
           surtitre={`Matricule ${agent.matricule} · ${agent.fonction}`}
           titre={`Bonjour, ${agent.prenom} !`}
@@ -150,12 +150,12 @@ export default function DashboardPage() {
           }
         />
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-3">
           <Indicateur
             titre="Solde aujourd'hui"
             icone={Wallet}
             ton={agent.solde < 0 ? "rose" : "brand"}
-            valeur={<span className={agent.solde < 0 ? "text-rose-600" : ""}>{agent.solde} <span className="text-lg font-semibold text-slate-400">jours</span></span>}
+            valeur={<span className={agent.solde < 0 ? "text-rose-600" : ""}>{agent.solde} <span className="text-base font-semibold text-slate-400">jours</span></span>}
             detail={`${agent.jours_acquis} acquis − ${agent.jours_pris} pris · +2 j chaque mois`}
           />
           <Indicateur
@@ -169,7 +169,7 @@ export default function DashboardPage() {
             titre="Dernier congé"
             icone={Plane}
             ton="amber"
-            valeur={<span className="text-xl">{dernier ? `Retour le ${formatFr(dateRetour(dernier.fin))}` : "Aucun enregistré"}</span>}
+            valeur={<span className="text-lg">{dernier ? `Retour le ${formatFr(dateRetour(dernier.fin))}` : "Aucun enregistré"}</span>}
             detail={dernier ? `Départ le ${formatFr(dernier.debut)}` : undefined}
           />
         </div>
@@ -189,39 +189,39 @@ export default function DashboardPage() {
           )}
         </Alerte>
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-5">
+        <div className="mt-6 grid gap-5 lg:grid-cols-5">
           <section className="lg:col-span-3">
             <Carte>
-              <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-                <h2 className="text-lg font-bold text-slate-900">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+                <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
                   Mes vœux de congé
-                  <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-sm font-semibold text-slate-600">{voeuxActifs.length}</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{voeuxActifs.length}</span>
                 </h2>
                 <Link href="/demande" className={classesBouton("secondaire", "sm")}>
                   <Plus className="h-4 w-4" aria-hidden />
                   Nouveau
                 </Link>
               </div>
-              {message && <Alerte type="info" role="status" className="mx-6 mt-4">{message}</Alerte>}
+              {message && <Alerte type="info" role="status" className="mx-5 mt-4">{message}</Alerte>}
               {agent.demandes.length === 0 ? (
-                <div className="flex flex-col items-center px-6 py-12 text-center">
-                  <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
-                    <CalendarPlus className="h-7 w-7" aria-hidden />
+                <div className="flex flex-col items-center px-5 py-10 text-center">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
+                    <CalendarPlus className="h-6 w-6" aria-hidden />
                   </span>
-                  <p className="mt-4 text-base font-semibold text-slate-900">Aucun vœu pour l&apos;instant</p>
+                  <p className="mt-3 text-base font-semibold text-slate-900">Aucun vœu pour l&apos;instant</p>
                   <p className="mt-1 max-w-xs text-sm text-slate-500">
                     Consultez les disponibilités puis déposez votre premier vœu de congé.
                   </p>
-                  <Link href="/planning" className={classesBouton("secondaire", "md", "mt-5")}>Voir les disponibilités</Link>
+                  <Link href="/planning" className={classesBouton("secondaire", "sm", "mt-4")}>Voir les disponibilités</Link>
                 </div>
               ) : (
                 <ul className="divide-y divide-slate-100">
                   {agent.demandes.map((d) => (
-                    <li key={d.id} className={`px-6 py-4 ${d.statut === "supprime" ? "opacity-60" : ""}`}>
+                    <li key={d.id} className={`px-5 py-3.5 ${d.statut === "supprime" ? "opacity-60" : ""}`}>
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="space-y-1">
                           {d.periodes.map((p) => (
-                            <p key={p.debut} className="flex flex-wrap items-center gap-2 text-base font-semibold text-slate-900">
+                            <p key={p.debut} className="flex flex-wrap items-center gap-2 text-[15px] font-semibold text-slate-900">
                               {formatFr(p.debut)}
                               <ArrowRight className="h-4 w-4 text-slate-400" aria-hidden />
                               retour {formatFr(dateRetour(p.fin))}
@@ -248,22 +248,22 @@ export default function DashboardPage() {
           </section>
 
           <section className="lg:col-span-2">
-            <Carte className="p-6">
-              <h2 className="text-lg font-bold text-slate-900">Évolution de mon solde</h2>
+            <Carte className="p-5">
+              <h2 className="text-base font-bold text-slate-900">Évolution de mon solde</h2>
               <p className="text-sm text-slate-500">Au 1er de chaque mois, vœux déjà déduits</p>
-              <ul className="mt-5 space-y-2.5">
+              <ul className="mt-4 space-y-2">
                 {agent.projection.map((p) => {
                   const suffisant = p.solde >= minJours;
                   return (
                     <li key={p.mois} className="flex items-center gap-3 text-sm">
                       <span className="w-20 shrink-0 font-medium capitalize text-slate-600">{moisAnnee(p.mois)}</span>
-                      <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                      <span className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
                         <span
                           className={`block h-full rounded-full ${suffisant ? "bg-brand-500" : "bg-slate-300"}`}
                           style={{ width: `${Math.max(0, p.solde / maxProjection) * 100}%` }}
                         />
                       </span>
-                      <span className={`w-12 shrink-0 text-right font-bold ${suffisant ? "text-slate-900" : "text-slate-400"}`}>
+                      <span className={`w-12 shrink-0 text-right font-bold tabular-nums ${suffisant ? "text-slate-900" : "text-slate-400"}`}>
                         {p.solde} j
                       </span>
                     </li>
@@ -277,26 +277,26 @@ export default function DashboardPage() {
           </section>
         </div>
 
-        <Carte className="mt-6">
+        <Carte className="mt-5">
           <button
             onClick={() => setHistoriqueOuvert((v) => !v)}
             aria-expanded={historiqueOuvert}
-            className="flex w-full items-center justify-between px-6 py-4 text-left"
+            className="flex w-full items-center justify-between rounded-2xl px-5 py-3.5 text-left transition hover:bg-slate-50/70"
           >
             <span className="flex items-center gap-3 text-base font-bold text-slate-900">
-              <History className="h-5 w-5 text-slate-400" aria-hidden />
+              <History className="h-[18px] w-[18px] text-slate-400" aria-hidden />
               Congés déjà enregistrés
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-sm font-semibold text-slate-600">{agent.historique.length}</span>
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{agent.historique.length}</span>
             </span>
             <ChevronDown className={`h-5 w-5 text-slate-400 transition ${historiqueOuvert ? "rotate-180" : ""}`} aria-hidden />
           </button>
           {historiqueOuvert && (
             <ul className="divide-y divide-slate-100 border-t border-slate-100">
               {agent.historique.length === 0 && (
-                <li className="px-6 py-4 text-sm text-slate-500">Aucun congé enregistré.</li>
+                <li className="px-5 py-3.5 text-sm text-slate-500">Aucun congé enregistré.</li>
               )}
               {agent.historique.map((h) => (
-                <li key={h.debut} className="flex items-center justify-between px-6 py-3 text-[15px]">
+                <li key={h.debut} className="flex items-center justify-between px-5 py-2.5 text-sm">
                   <span className="text-slate-800">
                     {formatFr(h.debut)} → retour {formatFr(dateRetour(h.fin))}
                   </span>

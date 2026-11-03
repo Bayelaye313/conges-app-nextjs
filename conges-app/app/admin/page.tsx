@@ -224,7 +224,7 @@ export default function AdminPage() {
     <button
       onClick={() => setOnglet(o)}
       className={cx(
-        "flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition",
+        "flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] font-semibold transition",
         onglet === o ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
       )}
     >
@@ -234,17 +234,17 @@ export default function AdminPage() {
       )}
     </button>
   );
-  const cellule = "px-4 py-3 align-top";
-  const entete = "bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500";
-  const filtre = "h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100";
+  const cellule = "px-4 py-2.5 align-middle";
+  const entete = "border-b border-slate-200 bg-slate-50/80 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500";
+  const filtre = "h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100";
   const tonOccupation = (plein: boolean, ratio: number) => (plein ? "bg-rose-500" : ratio >= 0.75 ? "bg-amber-500" : "bg-emerald-500");
   const agentCellule = (matricule: string, prenom: string, nom: string, role: Role) => (
     <div className="flex items-center gap-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-bold text-brand-700">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-50 text-[11px] font-bold text-brand-700">
         {prenom.charAt(0)}{nom.charAt(0)}
       </span>
       <div>
-        <p className="font-semibold text-slate-900">{prenom} {nom}</p>
+        <p className="whitespace-nowrap font-semibold text-slate-900">{prenom} {nom}</p>
         <p className="text-xs text-slate-500">{matricule} · {role}</p>
       </div>
     </div>
@@ -253,7 +253,7 @@ export default function AdminPage() {
   return (
     <>
       <BarreNavigation admin />
-      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
         <EnTete
           surtitre="Campagne des vœux"
           titre="Tableau de bord"
@@ -280,24 +280,18 @@ export default function AdminPage() {
           }
         />
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Carte className="p-5">
-            <div className="flex items-start justify-between">
-              <p className="text-sm font-medium text-slate-500">Taux de soumission</p>
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-600"><TrendingUp className="h-5 w-5" aria-hidden /></span>
-            </div>
-            <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{kpis.taux_soumission} %</p>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Indicateur titre="Taux de soumission" icone={TrendingUp} valeur={`${kpis.taux_soumission} %`} detail={`${kpis.agents_ayant_soumis} / ${kpis.agents} agents`}>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
               <div className="h-full rounded-full bg-brand-500" style={{ width: `${Math.min(kpis.taux_soumission, 100)}%` }} />
             </div>
-            <p className="mt-2 text-sm text-slate-500">{kpis.agents_ayant_soumis} / {kpis.agents} agents</p>
-          </Carte>
+          </Indicateur>
           <Indicateur titre="Vœux en attente" icone={Clock} ton={kpis.voeux_en_attente > 0 ? "amber" : "slate"} valeur={kpis.voeux_en_attente} detail="à valider" />
           <Indicateur titre="Vœux validés" icone={CheckCircle2} ton="emerald" valeur={kpis.voeux_valides} detail={`${kpis.voeux_supprimes} supprimé(s)`} />
           <Indicateur titre="Sans vœu" icone={UserX} ton="rose" valeur={kpis.agents_sans_voeu} detail="agents à relancer" />
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
+        <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
           {[
             { titre: "Jours demandés", valeur: kpis.jours_demandes, detail: "vœux actifs" },
             { titre: "Codes choisis", valeur: `${kpis.agents_connectes} / ${kpis.agents}`, detail: "déjà connectés" },
@@ -309,16 +303,16 @@ export default function AdminPage() {
               detail: kpis.par_role[r].agents ? `${Math.round((kpis.par_role[r].ayant_soumis / kpis.par_role[r].agents) * 100)} %` : ""
             }))
           ].map((k) => (
-            <div key={k.titre} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-              <p className="text-xs font-medium text-slate-500">{k.titre}</p>
-              <p className="mt-1 text-xl font-bold text-slate-900">{k.valeur}</p>
+            <div key={k.titre} className="rounded-xl border border-slate-200/90 bg-white px-3.5 py-2.5 shadow-card">
+              <p className="truncate text-xs font-medium text-slate-500">{k.titre}</p>
+              <p className="mt-0.5 text-lg font-bold tabular-nums text-slate-900">{k.valeur}</p>
               {k.detail && <p className="text-xs text-slate-500">{k.detail}</p>}
             </div>
           ))}
         </div>
 
         {codeAffiche && (
-          <Alerte type="info" role="status" className="mt-6">
+          <Alerte type="info" role="status" className="mt-4">
             <p>
               Code provisoire de <strong>{codeAffiche.nom}</strong> ({codeAffiche.matricule}) :{" "}
               <span className="ml-1 select-all rounded-lg bg-white px-3 py-1 font-mono text-lg font-semibold tracking-wider text-brand-700 ring-1 ring-brand-200">{codeAffiche.code}</span>
@@ -331,32 +325,33 @@ export default function AdminPage() {
         )}
         {message && <Alerte type="info" role="status" className="mt-4">{message}</Alerte>}
 
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          <div className="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1">
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1">
             {lienOnglet("voeux", "Vœux", s.demandes.length)}
             {lienOnglet("sans_voeu", "Sans vœu", kpis.agents_sans_voeu)}
             {lienOnglet("agents", "Agents", kpis.agents)}
             {lienOnglet("occupation", "Occupation")}
           </div>
           {onglet !== "occupation" && (
-            <div className="ml-auto flex flex-wrap gap-2">
-              <div className="relative">
+            <div className="flex w-full flex-wrap gap-2 sm:ml-auto sm:w-auto">
+              <div className="relative flex-1 sm:flex-none">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
                 <input
                   value={recherche}
                   onChange={(e) => setRecherche(e.target.value)}
                   placeholder="Matricule ou nom…"
-                  className={cx(filtre, "w-56 pl-9")}
+                  aria-label="Rechercher un agent"
+                  className={cx(filtre, "w-full pl-9 sm:w-56")}
                 />
               </div>
-              <select value={filtreRole} onChange={(e) => setFiltreRole(e.target.value as typeof filtreRole)} className={filtre}>
+              <select aria-label="Filtrer par rôle" value={filtreRole} onChange={(e) => setFiltreRole(e.target.value as typeof filtreRole)} className={filtre}>
                 <option value="tous">Tous rôles</option>
                 <option value="AV">AV</option>
                 <option value="CEV">CEV</option>
                 <option value="CS">CS</option>
               </select>
               {onglet === "voeux" && (
-                <select value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value as typeof filtreStatut)} className={filtre}>
+                <select aria-label="Filtrer par statut" value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value as typeof filtreStatut)} className={filtre}>
                   <option value="tous">Tous statuts</option>
                   <option value="en_attente">En attente</option>
                   <option value="valide">Validés</option>
@@ -367,12 +362,12 @@ export default function AdminPage() {
           )}
         </div>
 
-        <Carte className="mt-4 overflow-hidden">
+        <Carte className="mt-3 overflow-hidden">
           <div className="overflow-x-auto">
             {onglet === "voeux" && (
               <>
                 {demandesFiltrees.some((d) => d.statut === "en_attente") && (
-                  <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-amber-50/60 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3 border-b border-amber-200/70 bg-amber-50/60 px-4 py-2">
                     <p className="text-sm text-amber-900">
                       {demandesFiltrees.filter((d) => d.statut === "en_attente").length} vœu(x) en attente dans cette liste
                     </p>
@@ -381,13 +376,13 @@ export default function AdminPage() {
                     </Bouton>
                   </div>
                 )}
-                <table className="w-full text-sm text-slate-700">
+                <table className="w-full text-sm tabular-nums text-slate-700">
                   <thead className={entete}>
                     <tr><th className={cellule}>Agent</th><th className={cellule}>Départ → retour</th><th className={cellule}>Jours</th><th className={cellule}>Soumis le</th><th className={cellule}>Statut</th><th className={cellule}></th></tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {demandesFiltrees.length === 0 && (
-                      <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-500">Aucun vœu pour ces filtres.</td></tr>
+                      <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-500">Aucun vœu pour ces filtres.</td></tr>
                     )}
                     {demandesFiltrees.map((d) => (
                       <tr key={d.id} className="transition hover:bg-slate-50">
@@ -425,7 +420,7 @@ export default function AdminPage() {
             )}
 
             {(onglet === "sans_voeu" || onglet === "agents") && (
-              <table className="w-full text-sm text-slate-700">
+              <table className="w-full text-sm tabular-nums text-slate-700">
                 <thead className={entete}>
                   <tr>
                     <th className={cellule}>Agent</th><th className={cellule}>Entrée</th><th className={cellule}>Solde auj.</th>
@@ -436,7 +431,7 @@ export default function AdminPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {agentsFiltres.length === 0 && (
-                    <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">Aucun agent pour ces filtres.</td></tr>
+                    <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-500">Aucun agent pour ces filtres.</td></tr>
                   )}
                   {agentsFiltres.map((a) => (
                     <tr key={a.matricule} className="transition hover:bg-slate-50">
@@ -478,7 +473,7 @@ export default function AdminPage() {
             )}
 
             {onglet === "occupation" && (
-              <table className="w-full text-sm text-slate-700">
+              <table className="w-full text-sm tabular-nums text-slate-700">
                 <thead className={entete}>
                   <tr>
                     <th className={cellule}>Quinzaine</th>
@@ -501,7 +496,7 @@ export default function AdminPage() {
                               {o.absents}{o.plafond !== null ? ` / ${o.plafond}` : ""}
                             </span>
                             {o.plafond !== null && (
-                              <div className="mt-1.5 h-2 w-32 overflow-hidden rounded-full bg-slate-100">
+                              <div className="mt-1 h-1.5 w-28 overflow-hidden rounded-full bg-slate-100">
                                 <div className={`h-full rounded-full ${tonOccupation(plein, ratio)}`} style={{ width: `${Math.min(ratio, 1) * 100}%` }} />
                               </div>
                             )}

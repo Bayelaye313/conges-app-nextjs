@@ -43,10 +43,10 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-screen lg:grid-cols-2">
-      <section className="relative hidden overflow-hidden bg-gradient-to-br from-brand-600 via-brand-700 to-brand-900 p-12 text-white lg:flex lg:flex-col lg:justify-between">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-sky-400/20 blur-3xl" />
+    <main className="grid min-h-screen bg-white lg:grid-cols-[0.95fr_1.05fr]">
+      <section className="relative hidden overflow-hidden bg-gradient-to-br from-brand-700 via-brand-700 to-brand-900 p-8 text-white lg:flex lg:flex-col lg:justify-between xl:p-10">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 -left-16 h-80 w-80 rounded-full bg-sky-400/20 blur-3xl" />
 
         <div className="relative flex items-center gap-2.5 text-lg font-bold">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25">
@@ -55,14 +55,15 @@ export default function LoginPage() {
           Mes Congés
         </div>
 
-        <div className="relative max-w-md">
-          <h2 className="text-4xl font-extrabold leading-tight tracking-tight">
+        <div className="relative max-w-lg">
+          <p className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-brand-100">Espace agents de terrain</p>
+          <h2 className="text-3xl font-extrabold leading-tight tracking-tight xl:text-4xl">
             Préparez vos congés en toute sérénité.
           </h2>
-          <p className="mt-4 text-lg text-brand-100">
+          <p className="mt-3 max-w-md text-base leading-relaxed text-brand-100">
             Consultez vos droits et déposez vos vœux en quelques clics, depuis le terrain ou depuis chez vous.
           </p>
-          <ul className="mt-10 space-y-5">
+          <ul className="mt-7 space-y-4">
             {ATOUTS.map(({ icone: Icone, titre, texte }) => (
               <li key={titre} className="flex gap-4">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/20">
@@ -80,16 +81,17 @@ export default function LoginPage() {
         <p className="relative text-sm text-brand-200">Service de terrain — campagne des vœux de congé</p>
       </section>
 
-      <section className="flex items-center justify-center px-5 py-12 sm:px-10">
+      <section className="flex items-center justify-center px-5 py-8 sm:px-10 lg:px-12">
         <div className="w-full max-w-md">
-          <div className="lg:hidden"><Logo /></div>
+          <div className="mb-8 lg:hidden"><Logo /></div>
 
-          <h1 className="mt-8 text-3xl font-bold tracking-tight text-slate-900 lg:mt-0">Bonjour 👋</h1>
-          <p className="mt-2 text-base text-slate-600">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Votre espace congés</p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Bonjour 👋</h1>
+          <p className="mt-2 text-[15px] leading-relaxed text-slate-600">
             Connectez-vous avec votre matricule et votre code d&apos;accès pour accéder à votre espace.
           </p>
 
-          <form onSubmit={ouvrirDossier} className="mt-8 space-y-5">
+          <form onSubmit={ouvrirDossier} className="mt-6 space-y-4">
             <label className="block">
               <span className="libelle">Matricule</span>
               <div className="relative">
@@ -134,7 +136,7 @@ export default function LoginPage() {
             </Bouton>
           </form>
 
-          <p className="mt-8 rounded-xl bg-slate-100 px-4 py-3 text-sm text-slate-600">
+          <p className="mt-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
             Code oublié ? Adressez-vous à l&apos;administration pour obtenir un nouveau code provisoire.
           </p>
         </div>

@@ -11,24 +11,26 @@
 }
 
 html, body {
-  background-color: #F8FAFC;
+  background-color: #F5F7FB;
 }
 
 body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   color: #0F172A;
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 15px;
+  line-height: 1.55;
+  background-image: radial-gradient(ellipse at 50% 0%, rgb(224 231 255 / 0.3), transparent 42rem);
+  background-repeat: no-repeat;
 }
 
 *:focus-visible {
-  outline: 2px solid #6366F1;
-  outline-offset: 2px;
+  outline: 2px solid #4F46E5;
+  outline-offset: 3px;
 }
 
 @layer components {
   .champ {
-    @apply mt-1.5 block h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100;
+    @apply mt-1.5 block h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-[15px] text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100;
   }
   .libelle {
     @apply text-sm font-semibold text-slate-700;

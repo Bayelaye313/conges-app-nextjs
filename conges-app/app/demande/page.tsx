@@ -68,7 +68,7 @@ function DemandeForm() {
   }
 
   const bouton = (actif: boolean) =>
-    `flex flex-1 items-center gap-3 rounded-xl border-2 px-4 py-3 text-left text-[15px] font-semibold transition ${
+    `flex flex-1 items-center gap-3 rounded-xl border-2 px-3.5 py-2.5 text-left text-[15px] font-semibold transition ${
       actif ? "border-brand-500 bg-brand-50 text-brand-700" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
     }`;
   const puce = (actif: boolean) => (
@@ -80,8 +80,8 @@ function DemandeForm() {
   return (
     <>
       <BarreNavigation />
-      <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-        <Link href="/dashboard" className={classesBouton("fantome", "sm", "-ml-3 mb-4")}>
+      <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:py-8">
+        <Link href="/dashboard" className={classesBouton("fantome", "sm", "-ml-3 mb-3")}>
           <ArrowLeft className="h-4 w-4" aria-hidden />
           Retour à mon espace
         </Link>
@@ -92,14 +92,14 @@ function DemandeForm() {
           description="Départ le 1er ou le 16 du mois, minimum 11 jours. Les dimanches et jours fériés ne sont pas décomptés. Votre solde est recalculé à la date de départ (+2 jours par mois d'ici là)."
         />
 
-        <Carte className="p-6 sm:p-8">
-          <ol className="space-y-8">
+        <Carte className="p-5 sm:p-6">
+          <ol className="space-y-6">
             <li>
-              <h2 className="flex items-center gap-3 text-lg font-bold text-slate-900">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-600 text-sm text-white">1</span>
+              <h2 className="flex items-center gap-2.5 text-base font-bold text-slate-900">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600 text-xs text-white">1</span>
                 Quand souhaitez-vous partir ?
               </h2>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <label className="block">
                   <span className="libelle">Mois de départ</span>
                   <select value={mois} onChange={(e) => setMois(Number(e.target.value))} className="champ">
@@ -120,11 +120,11 @@ function DemandeForm() {
             </li>
 
             <li>
-              <h2 className="flex items-center gap-3 text-lg font-bold text-slate-900">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-600 text-sm text-white">2</span>
+              <h2 className="flex items-center gap-2.5 text-base font-bold text-slate-900">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600 text-xs text-white">2</span>
                 Comment organiser votre congé ?
               </h2>
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <div className="mt-3 flex flex-col gap-2.5 sm:flex-row">
                 <button type="button" onClick={() => setNbParties(1)} className={bouton(nbParties === 1)}>
                   {puce(nbParties === 1)} En une seule fois
                 </button>
@@ -134,9 +134,9 @@ function DemandeForm() {
               </div>
 
               {nbParties === 1 && (
-                <div className="mt-5">
+                <div className="mt-4">
                   <span className="libelle">Date de départ</span>
-                  <div className="mt-1.5 flex flex-col gap-3 sm:flex-row">
+                  <div className="mt-1.5 flex flex-col gap-2.5 sm:flex-row">
                     <button type="button" onClick={() => setPartieChoisie("debut")} className={bouton(partieChoisie === "debut")}>
                       {puce(partieChoisie === "debut")} Le 1er du mois
                     </button>
@@ -152,11 +152,11 @@ function DemandeForm() {
             </li>
 
             <li>
-              <h2 className="flex items-center gap-3 text-lg font-bold text-slate-900">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-600 text-sm text-white">3</span>
+              <h2 className="flex items-center gap-2.5 text-base font-bold text-slate-900">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600 text-xs text-white">3</span>
                 Combien de jours ?
               </h2>
-              <label className="mt-4 block max-w-xs">
+              <label className="mt-3 block max-w-xs">
                 <span className="libelle">Nombre de jours</span>
                 <input
                   type="number"
@@ -171,23 +171,23 @@ function DemandeForm() {
             </li>
           </ol>
 
-          {erreur && <Alerte type="erreur" className="mt-6">{erreur}</Alerte>}
+          {erreur && <Alerte type="erreur" className="mt-5">{erreur}</Alerte>}
 
           {!apercu && !resultat?.succes && (
-            <Bouton variante="secondaire" taille="lg" onClick={() => envoyer(false)} disabled={chargement} className="mt-8 w-full">
+            <Bouton variante="secondaire" taille="lg" onClick={() => envoyer(false)} disabled={chargement} className="mt-6 w-full">
               {chargement ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <SearchCheck className="h-5 w-5" aria-hidden />}
               {chargement ? "Vérification…" : "Vérifier mon vœu"}
             </Bouton>
           )}
 
           {apercu && (
-            <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+            <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:p-5">
               <p className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
                 <CheckCircle2 className="h-5 w-5" aria-hidden />
                 Votre vœu respecte toutes les règles
               </p>
               {apercu.periodes.map((p) => (
-                <p key={p.debut} className="mt-3 flex flex-wrap items-center gap-2 text-xl font-bold text-slate-900">
+                <p key={p.debut} className="mt-2.5 flex flex-wrap items-center gap-2 text-lg font-bold text-slate-900">
                   {formatFr(p.debut)}
                   <ArrowRight className="h-5 w-5 text-emerald-600" aria-hidden />
                   retour {formatFr(dateRetour(p.fin))}
@@ -198,7 +198,7 @@ function DemandeForm() {
                 {apercu.nbJours} jours décomptés. Solde au départ : <strong>{apercu.soldeAuDepart} jours</strong>.
                 Les règles seront revérifiées à l&apos;envoi.
               </p>
-              <Bouton taille="lg" onClick={() => envoyer(true)} disabled={chargement} className="mt-5 w-full">
+              <Bouton taille="lg" onClick={() => envoyer(true)} disabled={chargement} className="mt-4 w-full">
                 {chargement ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <Send className="h-5 w-5" aria-hidden />}
                 {chargement ? "Envoi…" : "Confirmer et envoyer mon vœu"}
               </Bouton>
@@ -206,7 +206,7 @@ function DemandeForm() {
           )}
 
           {resultat && (
-            <Alerte type={resultat.succes ? "succes" : "erreur"} role="status" className="mt-6">
+            <Alerte type={resultat.succes ? "succes" : "erreur"} role="status" className="mt-5">
               <p>{resultat.message}</p>
               {resultat.succes && (
                 <Link href="/dashboard" className="mt-2 inline-flex items-center gap-1 font-semibold underline underline-offset-2">
@@ -217,7 +217,7 @@ function DemandeForm() {
           )}
         </Carte>
 
-        <Link href="/planning" className="mt-6 flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-6 py-4 text-[15px] font-semibold text-slate-700 shadow-card transition hover:border-brand-200 hover:text-brand-700">
+        <Link href="/planning" className="mt-4 flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-[15px] font-semibold text-slate-700 shadow-card transition hover:border-brand-200 hover:text-brand-700">
           <span className="flex items-center gap-3">
             <CalendarDays className="h-5 w-5 text-brand-600" aria-hidden />
             Voir les places disponibles par quinzaine

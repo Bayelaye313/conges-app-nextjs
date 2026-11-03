@@ -46,7 +46,7 @@ export default function PlanningPage() {
   return (
     <>
       <BarreNavigation />
-      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
         <EnTete
           surtitre="Planning collectif"
           titre="Places disponibles par quinzaine"
@@ -64,33 +64,33 @@ export default function PlanningPage() {
         {donnees && (
           <>
             {donnees.plafond !== null && (
-              <div className="mb-5 flex flex-wrap gap-4 text-sm text-slate-600">
-                <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-emerald-500" />Places disponibles</span>
-                <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-amber-500" />Presque complet</span>
-                <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-rose-500" />Complet</span>
+              <div className="mb-4 flex flex-wrap gap-x-4 gap-y-2 text-[13px] font-medium text-slate-600">
+                <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />Places disponibles</span>
+                <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-amber-500" />Presque complet</span>
+                <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-rose-500" />Complet</span>
               </div>
             )}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {donnees.quinzaines.map((q) => {
                 const restant = q.plafond === null ? null : Math.max(0, q.plafond - q.absents);
                 const ratio = q.plafond ? q.absents / q.plafond : 0;
                 const ton = restant === 0 ? TONS.complet : ratio >= 0.75 ? TONS.presque : TONS.libre;
                 const [annee, mois, partie] = q.cle.split("-");
                 return (
-                  <Carte key={q.cle} className={`flex flex-col p-5 ${restant === 0 ? "bg-slate-50" : ""}`}>
+                  <Carte key={q.cle} className={`flex flex-col p-4 sm:p-5 ${restant === 0 ? "bg-slate-50" : ""}`}>
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-base font-bold capitalize text-slate-900">{q.libelle}</span>
+                      <span className="text-[15px] font-bold capitalize text-slate-900">{q.libelle}</span>
                       <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${ton.badge}`}>
                         {restant === null ? `${q.absents} absents` : restant === 0 ? "Complet" : `${restant} place${restant > 1 ? "s" : ""}`}
                       </span>
                     </div>
                     {q.plafond !== null && (
-                      <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
                         <div className={`h-full rounded-full ${ton.barre}`} style={{ width: `${Math.min(ratio, 1) * 100}%` }} />
                       </div>
                     )}
-                    <div className="mt-3 flex flex-1 items-end justify-between gap-2 text-sm">
-                      <span className="text-slate-500">
+                    <div className="mt-2.5 flex flex-1 items-end justify-between gap-2 text-sm">
+                      <span className="tabular-nums text-slate-500">
                         {q.plafond === null ? "Sans plafond" : `${q.absents} / ${q.plafond} absents`}
                       </span>
                       {restant !== 0 && (
