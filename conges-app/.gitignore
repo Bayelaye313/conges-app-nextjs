@@ -1,0 +1,16 @@
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Données réelles des agents (personnelles) — ne jamais versionner
+data/*.json
+data/*.bak
+data/.*.tmp
+data/import/
+.netlify/

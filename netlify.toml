@@ -1,0 +1,11 @@
+# Déploiement Netlify : l'application est dans le sous-dossier conges-app.
+# Variables à définir dans Netlify (Site configuration → Environment variables) :
+#   SESSION_SECRET   (48 caractères aléatoires, voir conges-app/.env.example)
+#   CONGES_STOCKAGE = blobs
+[build]
+  base = "conges-app"
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"

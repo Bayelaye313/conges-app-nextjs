@@ -1,0 +1,12 @@
+{
+  "name": "conges-app-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "npm --prefix conges-app ci",
+    "dev": "npm --prefix conges-app run dev",
+    "build": "npm --prefix conges-app run build",
+    "start": "npm --prefix conges-app run start",
+    "lint": "npm --prefix conges-app run lint"
+  }
+}
