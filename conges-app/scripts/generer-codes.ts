@@ -6,6 +6,11 @@
  *   npm run codes:generer -- --matricule 0291             → réinitialise un agent
  *   npm run codes:generer -- --tous                       → réinitialise tous les agents
  *   npm run codes:generer -- --admin 0568 --nom "Prénom Nom" → crée/réinitialise un administrateur
+ *   npm run codes:generer -- --role CEV,CS --code IcanPass2026 → même code provisoire pour tous les CEV et CS
+ *
+ * --role AV|CEV|CS (liste séparée par des virgules) réinitialise tous les agents de ces rôles.
+ * --code X impose un code provisoire commun au lieu d'un code aléatoire par
+ * personne ; chacun reste obligé de le remplacer à sa première connexion.
  *
  * Une fois l'application en ligne, l'admin peut aussi générer un code depuis
  * son tableau de bord (onglet Agents → « nouveau code »).
@@ -18,8 +23,8 @@ import fs from "fs";
 import path from "path";
 import { randomBytes } from "crypto";
 import { dossierDonnees, lireDocument, modifierDocument } from "../lib/storage";
-import { trouverAdmin, trouverAgent, type AuthCompte, type Registre } from "../lib/conges";
-import { genererCodeProvisoire, hacherCode } from "../lib/auth";
+import { trouverAdmin, trouverAgent, type AuthCompte, type Registre, type Role } from "../lib/conges";
+import { CODE_MIN_LONGUEUR, genererCodeProvisoire, hacherCode } from "../lib/auth";
 import { argument, arreter, drapeau } from "./outils";
 
 async function main() {
@@ -28,6 +33,13 @@ async function main() {
 
   const matricule = argument("--matricule");
   const admin = argument("--admin");
+  const codeCommun = argument("--code");
+  if (codeCommun !== undefined && codeCommun.length < CODE_MIN_LONGUEUR) {
+    arreter(`Le code commun doit contenir au moins ${CODE_MIN_LONGUEUR} caractères.`);
+  }
+  const rolesArg = argument("--role");
+  const roles = rolesArg?.split(",").map((r) => r.trim().toUpperCase()) as Role[] | undefined;
+  if (roles?.some((r) => !["AV", "CEV", "CS"].includes(r))) arreter("--role accepte AV, CEV, CS (séparés par des virgules).");
   type Cible = { matricule: string; prenom: string; nom: string; fonction: string; admin: boolean };
   let cibles: Cible[];
 
@@ -40,6 +52,10 @@ async function main() {
     const agent = trouverAgent(registre, matricule);
     if (!agent) arreter(`Matricule ${matricule} inconnu.`);
     cibles = [{ ...agent, admin: false }];
+  } else if (roles) {
+    cibles = Object.values(registre.agents)
+      .filter((a) => roles.includes(a.role))
+      .map((a) => ({ ...a, admin: false }));
   } else {
     cibles = Object.values(registre.agents)
       .filter((a) => drapeau("--tous") || !a.auth)
@@ -54,7 +70,8 @@ async function main() {
   const maintenant = new Date().toISOString();
   const auths = new Map<string, AuthCompte>();
   for (const c of cibles.sort((a, b) => a.matricule.localeCompare(b.matricule))) {
-    const code = genererCodeProvisoire();
+    const code = codeCommun ?? genererCodeProvisoire();
+    // Un hash (sel) distinct par compte, même avec un code commun.
     auths.set(c.matricule, { hash: await hacherCode(code), doit_changer: true, modifie_le: maintenant });
     lignes.push([c.matricule, c.prenom, c.nom, c.fonction, code].join(";"));
   }
