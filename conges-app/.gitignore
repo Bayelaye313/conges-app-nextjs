@@ -6,7 +6,6 @@ out/
 # Secrets
 .env
 .env.*
-!.env.example
 
 # Données réelles des agents (personnelles) — ne jamais versionner
 data/*.json
