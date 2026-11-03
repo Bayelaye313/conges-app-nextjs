@@ -12,8 +12,8 @@
     "importer:agents": "tsx scripts/importer-agents.ts",
     "importer:conges": "tsx scripts/importer-conges.ts",
     "codes:generer": "tsx scripts/generer-codes.ts",
-    "registre:publier": "tsx scripts/registre-netlify.ts publier",
-    "registre:recuperer": "tsx scripts/registre-netlify.ts recuperer"
+    "registre:publier": "node --env-file-if-exists=.env.local --import tsx scripts/registre-netlify.ts publier",
+    "registre:recuperer": "node --env-file-if-exists=.env.local --import tsx scripts/registre-netlify.ts recuperer"
   },
   "dependencies": {
     "@netlify/blobs": "^11.1.7",
@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.7",
+    "@netlify/plugin-nextjs": "^5.16.5",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

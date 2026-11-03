@@ -9,3 +9,9 @@
 
 [build.environment]
   NODE_VERSION = "22"
+
+# Runtime Next.js de Netlify : transforme les pages dynamiques et les routes
+# /api en fonctions serveur. Sans lui, seuls des fichiers statiques sont mis
+# en ligne et le site répond 404.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
