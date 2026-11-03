@@ -91,14 +91,36 @@ const backendFichier: Backend = {
 };
 
 // -------------------- NETLIFY BLOBS --------------------
+const DELAI_BLOBS_MS = 8000;
+
+/**
+ * fetch avec délai maximal : un appel à Netlify Blobs qui ne répond pas
+ * devient une erreur explicite au lieu de bloquer la fonction jusqu'au
+ * 504 de Netlify. Les appels lents ou en échec sont journalisés.
+ */
+const fetchAvecDelai: typeof fetch = async (entree, init) => {
+  const debut = Date.now();
+  const methode = init?.method ?? "GET";
+  const url = String(entree instanceof Request ? entree.url : entree).replace(/\?.*$/, "");
+  try {
+    const res = await fetch(entree, { ...init, cache: "no-store", signal: AbortSignal.timeout(DELAI_BLOBS_MS) });
+    const duree = Date.now() - debut;
+    if (duree > 1500 || res.status >= 500) console.warn(`[blobs] ${methode} ${url} → ${res.status} en ${duree} ms`);
+    return res;
+  } catch (e) {
+    console.error(`[blobs] ${methode} ${url} → échec après ${Date.now() - debut} ms : ${(e as Error).message}`);
+    throw e;
+  }
+};
+
 async function storeBlobs() {
   const { getStore } = await import("@netlify/blobs");
   // Hors de Netlify (scripts locaux), il faut l'identifiant du site et un jeton.
   const siteID = process.env.NETLIFY_SITE_ID;
   const token = process.env.NETLIFY_AUTH_TOKEN;
   return siteID && token
-    ? getStore({ name: NOM_STORE, siteID, token, consistency: "strong" })
-    : getStore({ name: NOM_STORE, consistency: "strong" });
+    ? getStore({ name: NOM_STORE, siteID, token, consistency: "strong", fetch: fetchAvecDelai })
+    : getStore({ name: NOM_STORE, consistency: "strong", fetch: fetchAvecDelai });
 }
 
 const backendBlobs: Backend = {
