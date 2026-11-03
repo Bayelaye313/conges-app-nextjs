@@ -3,7 +3,15 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { Alerte, BarreNavigation, Carte, Chargement, EnTete } from "@/components/ui";
 import { appelApi, RedirectionEnCours } from "@/lib/client";
+
+const TONS = {
+  libre: { badge: "bg-emerald-50 text-emerald-700 ring-emerald-600/20", barre: "bg-emerald-500" },
+  presque: { badge: "bg-amber-50 text-amber-700 ring-amber-600/20", barre: "bg-amber-500" },
+  complet: { badge: "bg-rose-50 text-rose-700 ring-rose-600/20", barre: "bg-rose-500" }
+};
 
 interface Quinzaine {
   cle: string;
@@ -36,63 +44,71 @@ export default function PlanningPage() {
   }, [router]);
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-12">
-      <Link href="/dashboard" className="eyebrow text-parchemin-100/40 hover:text-parchemin-100/70">
-        ← Retour au dossier
-      </Link>
-
-      <p className="eyebrow mt-6 text-cachet-light">Planning collectif</p>
-      <h1 className="font-display text-3xl font-semibold text-parchemin-50">Places disponibles par quinzaine</h1>
-
-      {erreur && <p role="alert" className="mt-10 text-sm text-alerte">{erreur}</p>}
-      {!erreur && !donnees && <p className="eyebrow mt-10 text-parchemin-100/50">Chargement du planning…</p>}
-
-      {donnees && (
-        <>
-          <p className="mt-2 max-w-2xl text-sm text-parchemin-100/70">
-            {donnees.plafond === null
+    <>
+      <BarreNavigation />
+      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        <EnTete
+          surtitre="Planning collectif"
+          titre="Places disponibles par quinzaine"
+          description={
+            donnees &&
+            (donnees.plafond === null
               ? `Pas de plafond pour les ${donnees.libelleRole.toLowerCase()} : seules vos règles individuelles (solde, délai de 12 mois) s'appliquent.`
-              : `Au plus ${donnees.plafond} ${donnees.libelleRole.toLowerCase()} en congé par quinzaine. Un congé occupe une place dans chaque quinzaine qu'il touche ; les vœux en attente comptent déjà.`}
-          </p>
+              : `Au plus ${donnees.plafond} ${donnees.libelleRole.toLowerCase()} en congé par quinzaine. Un congé occupe une place dans chaque quinzaine qu'il touche ; les vœux en attente comptent déjà.`)
+          }
+        />
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            {donnees.quinzaines.map((q) => {
-              const restant = q.plafond === null ? null : Math.max(0, q.plafond - q.absents);
-              const ratio = q.plafond ? q.absents / q.plafond : 0;
-              const couleur = restant === 0 ? "#B4483A" : ratio >= 0.75 ? "#C1793A" : "#3E7A5E";
-              const [annee, mois, partie] = q.cle.split("-");
-              return (
-                <div key={q.cle} className="card rounded-card px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-display text-parchemin-50">{q.libelle}</span>
-                    <span className="font-mono text-xs" style={{ color: couleur }}>
-                      {restant === null ? `${q.absents} absents` : restant === 0 ? "Complet" : `${restant} place${restant > 1 ? "s" : ""}`}
-                    </span>
-                  </div>
-                  {q.plafond !== null && (
-                    <div className="mt-2 h-2 overflow-hidden rounded-sm bg-encre-800">
-                      <div className="h-full" style={{ width: `${Math.min(ratio, 1) * 100}%`, backgroundColor: couleur }} />
+        {erreur && <Alerte type="erreur">{erreur}</Alerte>}
+        {!erreur && !donnees && <Chargement texte="Chargement du planning…" />}
+
+        {donnees && (
+          <>
+            {donnees.plafond !== null && (
+              <div className="mb-5 flex flex-wrap gap-4 text-sm text-slate-600">
+                <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-emerald-500" />Places disponibles</span>
+                <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-amber-500" />Presque complet</span>
+                <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-rose-500" />Complet</span>
+              </div>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {donnees.quinzaines.map((q) => {
+                const restant = q.plafond === null ? null : Math.max(0, q.plafond - q.absents);
+                const ratio = q.plafond ? q.absents / q.plafond : 0;
+                const ton = restant === 0 ? TONS.complet : ratio >= 0.75 ? TONS.presque : TONS.libre;
+                const [annee, mois, partie] = q.cle.split("-");
+                return (
+                  <Carte key={q.cle} className={`flex flex-col p-5 ${restant === 0 ? "bg-slate-50" : ""}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-base font-bold capitalize text-slate-900">{q.libelle}</span>
+                      <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${ton.badge}`}>
+                        {restant === null ? `${q.absents} absents` : restant === 0 ? "Complet" : `${restant} place${restant > 1 ? "s" : ""}`}
+                      </span>
                     </div>
-                  )}
-                  <div className="mt-2 flex items-center justify-between text-xs text-parchemin-100/50">
-                    <span className="font-mono">
-                      {q.plafond === null ? "sans plafond" : `${q.absents}/${q.plafond} absents`}
-                    </span>
-                    {restant !== 0 && (
-                      <Link
-                        href={`/demande?annee=${annee}&mois=${Number(mois)}&partie=${partie}`}
-                        className="text-cachet-light underline underline-offset-2"
-                      >
-                        Partir à cette date →
-                      </Link>
+                    {q.plafond !== null && (
+                      <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                        <div className={`h-full rounded-full ${ton.barre}`} style={{ width: `${Math.min(ratio, 1) * 100}%` }} />
+                      </div>
                     )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-    </main>
+                    <div className="mt-3 flex flex-1 items-end justify-between gap-2 text-sm">
+                      <span className="text-slate-500">
+                        {q.plafond === null ? "Sans plafond" : `${q.absents} / ${q.plafond} absents`}
+                      </span>
+                      {restant !== 0 && (
+                        <Link
+                          href={`/demande?annee=${annee}&mois=${Number(mois)}&partie=${partie}`}
+                          className="inline-flex items-center gap-1 font-semibold text-brand-600 hover:text-brand-700"
+                        >
+                          Partir à cette date <ArrowRight className="h-4 w-4" aria-hidden />
+                        </Link>
+                      )}
+                    </div>
+                  </Carte>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </main>
+    </>
   );
 }

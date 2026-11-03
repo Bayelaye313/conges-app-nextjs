@@ -4,12 +4,34 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
+  ArrowRight,
+  Award,
+  CalendarPlus,
+  ChevronDown,
+  History,
+  Plane,
+  Plus,
+  Wallet,
+  X
+} from "lucide-react";
+import {
+  Alerte,
+  BadgeStatut,
+  BarreNavigation,
+  Bouton,
+  Carte,
+  Chargement,
+  classesBouton,
+  EcranErreur,
+  EnTete,
+  Indicateur
+} from "@/components/ui";
+import {
   appelApi,
   dateRetour,
   formatFr,
   moisAnnee,
-  RedirectionEnCours,
-  STATUTS_VOEU
+  RedirectionEnCours
 } from "@/lib/client";
 
 interface Periode {
@@ -90,27 +112,14 @@ export default function DashboardPage() {
     }
   }
 
-  async function deconnecter() {
-    await fetch("/api/auth/deconnexion", { method: "POST" }).catch(() => undefined);
-    router.replace("/");
-  }
-
-  if (erreur) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-4 px-4">
-        <p role="alert" className="text-alerte">{erreur}</p>
-        <button onClick={() => router.replace("/")} className="text-cachet-light underline">
-          Retour à l&apos;accueil
-        </button>
-      </main>
-    );
-  }
+  if (erreur) return <EcranErreur message={erreur} />;
 
   if (!donnees) {
     return (
-      <main className="flex min-h-screen items-center justify-center">
-        <p className="eyebrow text-parchemin-100/50">Ouverture du dossier…</p>
-      </main>
+      <>
+        <BarreNavigation />
+        <Chargement texte="Ouverture de votre dossier…" />
+      </>
     );
   }
 
@@ -123,166 +132,181 @@ export default function DashboardPage() {
       : agent.projection.find((p) => p.mois >= agent.premiere_date_possible && p.solde >= minJours) ?? null;
   const voeuxActifs = agent.demandes.filter((d) => d.statut !== "supprime");
 
+  const maxProjection = Math.max(minJours, ...agent.projection.map((p) => p.solde), 1);
+
   return (
-    <main className="mx-auto max-w-3xl px-4 py-12">
-      <div className="mb-8 flex items-start justify-between gap-4">
-        <div>
-          <p className="eyebrow text-cachet-light">Dossier de l&apos;agent</p>
-          <h1 className="font-display text-3xl font-semibold text-parchemin-50">
-            {agent.prenom} {agent.nom}
-          </h1>
-          <p className="mt-1 font-mono text-sm text-parchemin-100/50">
-            Matricule {agent.matricule} · {agent.fonction}
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-2">
-          <button onClick={deconnecter} className="eyebrow text-parchemin-100/40 hover:text-parchemin-100/70">
-            Se déconnecter
-          </button>
-          <Link href="/compte" className="eyebrow text-parchemin-100/40 hover:text-parchemin-100/70">
-            Changer mon code
-          </Link>
-        </div>
-      </div>
+    <>
+      <BarreNavigation />
+      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        <EnTete
+          surtitre={`Matricule ${agent.matricule} · ${agent.fonction}`}
+          titre={`Bonjour, ${agent.prenom} !`}
+          description="Voici l'état de vos droits à congé et le suivi de vos vœux."
+          actions={
+            <Link href="/demande" className={classesBouton("primaire", "lg")}>
+              <Plus className="h-5 w-5" aria-hidden />
+              Déposer un vœu
+            </Link>
+          }
+        />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="card rounded-card px-5 py-4">
-          <p className="eyebrow text-parchemin-100/50">Solde aujourd&apos;hui</p>
-          <p className={`mt-2 font-display text-3xl ${agent.solde < 0 ? "text-alerte" : "text-parchemin-50"}`}>
-            {agent.solde}
-            <span className="ml-1 text-base text-parchemin-100/50">jours</span>
-          </p>
-          <p className="mt-1 font-mono text-[11px] text-parchemin-100/40">
-            {agent.jours_acquis} acquis − {agent.jours_pris} pris · +2 j chaque mois
-          </p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Indicateur
+            titre="Solde aujourd'hui"
+            icone={Wallet}
+            ton={agent.solde < 0 ? "rose" : "brand"}
+            valeur={<span className={agent.solde < 0 ? "text-rose-600" : ""}>{agent.solde} <span className="text-lg font-semibold text-slate-400">jours</span></span>}
+            detail={`${agent.jours_acquis} acquis − ${agent.jours_pris} pris · +2 j chaque mois`}
+          />
+          <Indicateur
+            titre="Ancienneté"
+            icone={Award}
+            ton="emerald"
+            valeur={formatAnciennete(agent.anciennete_mois)}
+            detail={`Entrée le ${formatFr(agent.date_embauche)}`}
+          />
+          <Indicateur
+            titre="Dernier congé"
+            icone={Plane}
+            ton="amber"
+            valeur={<span className="text-xl">{dernier ? `Retour le ${formatFr(dateRetour(dernier.fin))}` : "Aucun enregistré"}</span>}
+            detail={dernier ? `Départ le ${formatFr(dernier.debut)}` : undefined}
+          />
         </div>
-        <div className="card rounded-card px-5 py-4">
-          <p className="eyebrow text-parchemin-100/50">Ancienneté</p>
-          <p className="mt-2 font-display text-2xl text-parchemin-50">{formatAnciennete(agent.anciennete_mois)}</p>
-          <p className="mt-1 font-mono text-[11px] text-parchemin-100/40">
-            entrée le {formatFr(agent.date_embauche)}
-          </p>
-        </div>
-        <div className="card rounded-card px-5 py-4">
-          <p className="eyebrow text-parchemin-100/50">Dernier congé</p>
-          <p className="mt-2 font-display text-lg text-parchemin-50">
-            {dernier ? `retour le ${formatFr(dateRetour(dernier.fin))}` : "Aucun enregistré"}
-          </p>
-          {dernier && (
-            <p className="mt-1 font-mono text-[11px] text-parchemin-100/40">départ le {formatFr(dernier.debut)}</p>
-          )}
-        </div>
-      </div>
 
-      <div className="mt-4 rounded-card border border-cachet/40 bg-cachet/10 px-5 py-4 text-sm text-parchemin-50">
-        <p>
-          Premier départ possible : <strong>{formatFr(agent.premiere_date_possible)}</strong>
-          {agent.premiere_date_possible === agent.date_anniversaire && " (date anniversaire de votre entrée)"}
-          {" "}— vous aurez alors <strong>{agent.solde_a_cette_date} jours</strong>.
-        </p>
-        {agent.solde_a_cette_date < minJours && (
-          <p className="mt-1 text-cachet-light">
-            {moisSuffisant
-              ? `Le minimum de ${minJours} jours sera atteint à partir de ${moisAnnee(moisSuffisant.mois).toLowerCase()} (${moisSuffisant.solde} jours).`
-              : `Le minimum de ${minJours} jours ne sera pas atteint dans les 12 prochains mois.`}
+        <Alerte type={agent.solde_a_cette_date < minJours ? "attention" : "info"} className="mt-4">
+          <p>
+            Premier départ possible : <strong>{formatFr(agent.premiere_date_possible)}</strong>
+            {agent.premiere_date_possible === agent.date_anniversaire && " (date anniversaire de votre entrée)"}
+            {" "}— vous aurez alors <strong>{agent.solde_a_cette_date} jours</strong>.
           </p>
-        )}
-      </div>
-
-      <section className="mt-10">
-        <div className="mb-3 flex items-center justify-between">
-          <p className="eyebrow text-parchemin-100/50">Mes vœux de congé ({voeuxActifs.length})</p>
-          <Link href="/demande" className="eyebrow text-cachet-light hover:text-cachet">+ Nouveau vœu</Link>
-        </div>
-        {message && <p className="mb-3 text-sm text-parchemin-100/70">{message}</p>}
-        <div className="card divide-y divide-encre-700 rounded-card">
-          {agent.demandes.length === 0 && (
-            <p className="px-5 py-4 text-sm text-parchemin-100/50">
-              Vous n&apos;avez pas encore déposé de vœu.
+          {agent.solde_a_cette_date < minJours && (
+            <p className="mt-1 font-medium">
+              {moisSuffisant
+                ? `Le minimum de ${minJours} jours sera atteint à partir de ${moisAnnee(moisSuffisant.mois).toLowerCase()} (${moisSuffisant.solde} jours).`
+                : `Le minimum de ${minJours} jours ne sera pas atteint dans les 12 prochains mois.`}
             </p>
           )}
-          {agent.demandes.map((d) => (
-            <div key={d.id} className={`px-5 py-3 text-sm ${d.statut === "supprime" ? "opacity-50" : ""}`}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="font-mono text-parchemin-50">
-                  {d.periodes.map((p) => (
-                    <div key={p.debut}>
-                      {formatFr(p.debut)} → retour {formatFr(dateRetour(p.fin))}{" "}
-                      <span className="text-parchemin-100/50">({p.jours} j)</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className={`rounded border px-2 py-0.5 text-xs ${STATUTS_VOEU[d.statut].classe}`}>
-                    {STATUTS_VOEU[d.statut].libelle}
+        </Alerte>
+
+        <div className="mt-8 grid gap-6 lg:grid-cols-5">
+          <section className="lg:col-span-3">
+            <Carte>
+              <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+                <h2 className="text-lg font-bold text-slate-900">
+                  Mes vœux de congé
+                  <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-sm font-semibold text-slate-600">{voeuxActifs.length}</span>
+                </h2>
+                <Link href="/demande" className={classesBouton("secondaire", "sm")}>
+                  <Plus className="h-4 w-4" aria-hidden />
+                  Nouveau
+                </Link>
+              </div>
+              {message && <Alerte type="info" role="status" className="mx-6 mt-4">{message}</Alerte>}
+              {agent.demandes.length === 0 ? (
+                <div className="flex flex-col items-center px-6 py-12 text-center">
+                  <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
+                    <CalendarPlus className="h-7 w-7" aria-hidden />
                   </span>
-                  {d.statut === "en_attente" && (
-                    <button onClick={() => annuler(d.id)} className="text-xs text-parchemin-100/50 underline hover:text-alerte">
-                      Annuler
-                    </button>
-                  )}
+                  <p className="mt-4 text-base font-semibold text-slate-900">Aucun vœu pour l&apos;instant</p>
+                  <p className="mt-1 max-w-xs text-sm text-slate-500">
+                    Consultez les disponibilités puis déposez votre premier vœu de congé.
+                  </p>
+                  <Link href="/planning" className={classesBouton("secondaire", "md", "mt-5")}>Voir les disponibilités</Link>
                 </div>
-              </div>
-              {d.motif && <p className="mt-1 text-xs text-parchemin-100/40">{d.motif}</p>}
-            </div>
-          ))}
-        </div>
-      </section>
+              ) : (
+                <ul className="divide-y divide-slate-100">
+                  {agent.demandes.map((d) => (
+                    <li key={d.id} className={`px-6 py-4 ${d.statut === "supprime" ? "opacity-60" : ""}`}>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="space-y-1">
+                          {d.periodes.map((p) => (
+                            <p key={p.debut} className="flex flex-wrap items-center gap-2 text-base font-semibold text-slate-900">
+                              {formatFr(p.debut)}
+                              <ArrowRight className="h-4 w-4 text-slate-400" aria-hidden />
+                              retour {formatFr(dateRetour(p.fin))}
+                              <span className="text-sm font-medium text-slate-500">· {p.jours} jours</span>
+                            </p>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <BadgeStatut statut={d.statut} />
+                          {d.statut === "en_attente" && (
+                            <Bouton variante="danger" taille="sm" onClick={() => annuler(d.id)}>
+                              <X className="h-4 w-4" aria-hidden />
+                              Annuler
+                            </Bouton>
+                          )}
+                        </div>
+                      </div>
+                      {d.motif && <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">{d.motif}</p>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Carte>
+          </section>
 
-      <section className="mt-8">
-        <p className="eyebrow mb-3 text-parchemin-100/50">Évolution de mon solde (au 1er de chaque mois)</p>
-        <div className="card grid grid-cols-3 gap-px overflow-hidden rounded-card bg-encre-700 sm:grid-cols-6">
-          {agent.projection.map((p) => (
-            <div key={p.mois} className="bg-encre-900 px-3 py-2 text-center">
-              <p className="font-mono text-[10px] uppercase text-parchemin-100/40">{moisAnnee(p.mois)}</p>
-              <p className={`font-display text-lg ${p.solde >= minJours ? "text-parchemin-50" : "text-parchemin-100/40"}`}>
-                {p.solde} j
+          <section className="lg:col-span-2">
+            <Carte className="p-6">
+              <h2 className="text-lg font-bold text-slate-900">Évolution de mon solde</h2>
+              <p className="text-sm text-slate-500">Au 1er de chaque mois, vœux déjà déduits</p>
+              <ul className="mt-5 space-y-2.5">
+                {agent.projection.map((p) => {
+                  const suffisant = p.solde >= minJours;
+                  return (
+                    <li key={p.mois} className="flex items-center gap-3 text-sm">
+                      <span className="w-20 shrink-0 font-medium capitalize text-slate-600">{moisAnnee(p.mois)}</span>
+                      <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                        <span
+                          className={`block h-full rounded-full ${suffisant ? "bg-brand-500" : "bg-slate-300"}`}
+                          style={{ width: `${Math.max(0, p.solde / maxProjection) * 100}%` }}
+                        />
+                      </span>
+                      <span className={`w-12 shrink-0 text-right font-bold ${suffisant ? "text-slate-900" : "text-slate-400"}`}>
+                        {p.solde} j
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="mt-4 text-xs text-slate-500">
+                Barres bleues : minimum de {minJours} jours atteint. Dimanches et jours fériés non décomptés.
               </p>
-            </div>
-          ))}
+            </Carte>
+          </section>
         </div>
-        <p className="mt-2 text-xs text-parchemin-100/40">
-          Les jours sont décomptés hors dimanches et jours fériés. Vos vœux sont déjà déduits.
-        </p>
-      </section>
 
-      <section className="mt-8">
-        <button
-          onClick={() => setHistoriqueOuvert((v) => !v)}
-          aria-expanded={historiqueOuvert}
-          className="eyebrow flex w-full items-center justify-between text-parchemin-100/50 hover:text-parchemin-100/80"
-        >
-          <span>Congés déjà enregistrés ({agent.historique.length})</span>
-          <span>{historiqueOuvert ? "▲" : "▼"}</span>
-        </button>
-        {historiqueOuvert && (
-          <div className="card mt-3 divide-y divide-encre-700 rounded-card">
-            {agent.historique.length === 0 && (
-              <p className="px-5 py-4 text-sm text-parchemin-100/50">Aucun congé enregistré.</p>
-            )}
-            {agent.historique.map((h) => (
-              <div key={h.debut} className="flex items-center justify-between px-5 py-3 text-sm">
-                <span className="font-mono text-parchemin-50">
-                  {formatFr(h.debut)} → retour {formatFr(dateRetour(h.fin))}
-                </span>
-                <span className="text-xs text-parchemin-100/40">{h.jours} j</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <div className="mt-10 flex flex-wrap justify-end gap-3">
-        <Link href="/legal" className="rounded-card border border-encre-700 px-6 py-3 font-medium text-parchemin-100/70 transition hover:border-cachet/50 hover:text-cachet-light">
-          Cadre légal
-        </Link>
-        <Link href="/planning" className="rounded-card border border-encre-700 px-6 py-3 font-medium text-parchemin-100/70 transition hover:border-cachet/50 hover:text-cachet-light">
-          Voir les disponibilités
-        </Link>
-        <Link href="/demande" className="rounded-card bg-cachet px-6 py-3 font-medium text-encre-950 transition hover:bg-cachet-light">
-          Déposer un vœu de congé
-        </Link>
-      </div>
-    </main>
+        <Carte className="mt-6">
+          <button
+            onClick={() => setHistoriqueOuvert((v) => !v)}
+            aria-expanded={historiqueOuvert}
+            className="flex w-full items-center justify-between px-6 py-4 text-left"
+          >
+            <span className="flex items-center gap-3 text-base font-bold text-slate-900">
+              <History className="h-5 w-5 text-slate-400" aria-hidden />
+              Congés déjà enregistrés
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-sm font-semibold text-slate-600">{agent.historique.length}</span>
+            </span>
+            <ChevronDown className={`h-5 w-5 text-slate-400 transition ${historiqueOuvert ? "rotate-180" : ""}`} aria-hidden />
+          </button>
+          {historiqueOuvert && (
+            <ul className="divide-y divide-slate-100 border-t border-slate-100">
+              {agent.historique.length === 0 && (
+                <li className="px-6 py-4 text-sm text-slate-500">Aucun congé enregistré.</li>
+              )}
+              {agent.historique.map((h) => (
+                <li key={h.debut} className="flex items-center justify-between px-6 py-3 text-[15px]">
+                  <span className="text-slate-800">
+                    {formatFr(h.debut)} → retour {formatFr(dateRetour(h.fin))}
+                  </span>
+                  <span className="text-sm font-medium text-slate-500">{h.jours} jours</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Carte>
+      </main>
+    </>
   );
 }

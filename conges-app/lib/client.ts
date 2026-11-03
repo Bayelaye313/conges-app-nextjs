@@ -60,7 +60,7 @@ export function moisAnnee(dateStr: string): string {
 }
 
 export const STATUTS_VOEU: Record<string, { libelle: string; classe: string }> = {
-  en_attente: { libelle: "En attente", classe: "border-cachet/50 text-cachet-light" },
-  valide: { libelle: "Validé", classe: "border-succes/60 text-succes" },
-  supprime: { libelle: "Supprimé", classe: "border-alerte/50 text-alerte" }
+  en_attente: { libelle: "En attente", classe: "bg-amber-50 text-amber-700 ring-amber-600/20" },
+  valide: { libelle: "Validé", classe: "bg-emerald-50 text-emerald-700 ring-emerald-600/20" },
+  supprime: { libelle: "Supprimé", classe: "bg-rose-50 text-rose-700 ring-rose-600/20" }
 };

@@ -1,22 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { Calculator, CheckCircle2 } from "lucide-react";
+import { BarreNavigation, Carte, EnTete } from "@/components/ui";
 import { REPERES_LEGAUX_SENEGAL, estimerJoursLegauxAnnuels } from "@/lib/droitTravail";
 
 function Bloc({ titre, points }: { titre: string; points: readonly string[] }) {
   return (
-    <div className="card rounded-card px-6 py-5">
-      <h2 className="font-display text-xl text-parchemin-50">{titre}</h2>
-      <ul className="mt-3 space-y-2">
+    <Carte className="p-6">
+      <h2 className="text-lg font-bold text-slate-900">{titre}</h2>
+      <ul className="mt-4 space-y-3">
         {points.map((p, i) => (
-          <li key={i} className="flex gap-3 text-sm leading-relaxed text-parchemin-100/80">
-            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-cachet" />
+          <li key={i} className="flex gap-3 text-[15px] leading-relaxed text-slate-700">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-brand-500" aria-hidden />
             <span>{p}</span>
           </li>
         ))}
       </ul>
-    </div>
+    </Carte>
   );
 }
 
@@ -26,71 +27,61 @@ export default function LegalPage() {
   const estimation = estimerJoursLegauxAnnuels(anciennete, enfants);
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-12">
-      <Link href="/dashboard" className="eyebrow text-parchemin-100/40 hover:text-parchemin-100/70">
-        ← Retour au dossier
-      </Link>
+    <>
+      <BarreNavigation />
+      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        <EnTete
+          surtitre="Cadre légal"
+          titre="Congés payés — droit du travail sénégalais"
+          description="Ce qui suit est un repère informatif, reformulé à partir de sources spécialisées en droit social, pour aider les agents à comprendre le cadre général. Il ne remplace pas le texte de loi ni la convention collective applicable, qui peuvent prévoir des dispositions plus favorables."
+        />
 
-      <p className="eyebrow mt-6 text-cachet-light">Cadre légal</p>
-      <h1 className="font-display text-3xl font-semibold text-parchemin-50">
-        Congés payés — droit du travail sénégalais
-      </h1>
-      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-parchemin-100/70">
-        Ce qui suit est un repère informatif, reformulé à partir de sources spécialisées en droit
-        social, pour aider les agents à comprendre le cadre général. Il ne remplace pas le texte de
-        loi ni la convention collective applicable, qui peuvent prévoir des dispositions plus
-        favorables.
-      </p>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="space-y-5 lg:col-span-2">
+            <Bloc {...REPERES_LEGAUX_SENEGAL.droitBase} />
+            <Bloc {...REPERES_LEGAUX_SENEGAL.regimesParticuliers} />
+            <Bloc {...REPERES_LEGAUX_SENEGAL.priseDesConges} />
+            <Bloc {...REPERES_LEGAUX_SENEGAL.articulationAvecCeService} />
+          </div>
 
-      <div className="mt-8 space-y-5">
-        <Bloc {...REPERES_LEGAUX_SENEGAL.droitBase} />
-        <Bloc {...REPERES_LEGAUX_SENEGAL.regimesParticuliers} />
-        <Bloc {...REPERES_LEGAUX_SENEGAL.priseDesConges} />
-        <Bloc {...REPERES_LEGAUX_SENEGAL.articulationAvecCeService} />
-      </div>
+          <aside className="lg:sticky lg:top-24 lg:self-start">
+            <Carte className="p-6">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+                <Calculator className="h-5 w-5" aria-hidden />
+              </span>
+              <h2 className="mt-4 text-lg font-bold text-slate-900">Estimez vos droits</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Approximation pédagogique — le calcul réel se fait mois de service par mois de service.
+              </p>
 
-      <section className="mt-10 card rounded-card px-6 py-6">
-        <h2 className="font-display text-xl text-parchemin-50">Estimation indicative de vos droits</h2>
-        <p className="mt-1 text-xs text-parchemin-100/50">
-          Approximation pédagogique — le calcul réel se fait mois de service par mois de service.
+              <div className="mt-5 space-y-4">
+                <label className="block">
+                  <span className="libelle">Ancienneté (années)</span>
+                  <input type="number" min={0} value={anciennete} onChange={(e) => setAnciennete(Number(e.target.value))} className="champ" />
+                </label>
+                <label className="block">
+                  <span className="libelle">Enfants à charge (&lt; 14 ans)</span>
+                  <input type="number" min={0} value={enfants} onChange={(e) => setEnfants(Number(e.target.value))} className="champ" />
+                </label>
+              </div>
+
+              <dl className="mt-6 space-y-2 border-t border-slate-100 pt-5 text-[15px]">
+                <div className="flex justify-between text-slate-600"><dt>Base</dt><dd className="font-semibold text-slate-900">{estimation.base} j</dd></div>
+                <div className="flex justify-between text-slate-600"><dt>+ Ancienneté</dt><dd className="font-semibold text-slate-900">{estimation.majorationAnciennete} j</dd></div>
+                <div className="flex justify-between text-slate-600"><dt>+ Enfants</dt><dd className="font-semibold text-slate-900">{estimation.majorationEnfants} j</dd></div>
+              </dl>
+              <div className="mt-4 rounded-xl bg-brand-600 px-4 py-3 text-white">
+                <p className="text-sm text-brand-100">Total estimé</p>
+                <p className="text-2xl font-bold">{estimation.total} jours ouvrables / an</p>
+              </div>
+            </Carte>
+          </aside>
+        </div>
+
+        <p className="mt-10 text-sm text-slate-500">
+          Sources : {REPERES_LEGAUX_SENEGAL.texteReference} ; {REPERES_LEGAUX_SENEGAL.texteComplementaire}.
         </p>
-
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <label className="block">
-            <span className="eyebrow text-parchemin-100/50">Ancienneté (années)</span>
-            <input
-              type="number"
-              min={0}
-              value={anciennete}
-              onChange={(e) => setAnciennete(Number(e.target.value))}
-              className="mt-2 w-full rounded-card border border-encre-700 bg-encre-900 px-4 py-2 font-mono text-parchemin-50"
-            />
-          </label>
-          <label className="block">
-            <span className="eyebrow text-parchemin-100/50">Enfants à charge (&lt; 14 ans)</span>
-            <input
-              type="number"
-              min={0}
-              value={enfants}
-              onChange={(e) => setEnfants(Number(e.target.value))}
-              className="mt-2 w-full rounded-card border border-encre-700 bg-encre-900 px-4 py-2 font-mono text-parchemin-50"
-            />
-          </label>
-        </div>
-
-        <div className="mt-5 flex flex-wrap gap-4 font-mono text-sm text-parchemin-100/70">
-          <span>Base : {estimation.base} j</span>
-          <span>+ Ancienneté : {estimation.majorationAnciennete} j</span>
-          <span>+ Enfants : {estimation.majorationEnfants} j</span>
-          <span className="font-semibold text-cachet-light">
-            = {estimation.total} jours ouvrables / an
-          </span>
-        </div>
-      </section>
-
-      <p className="mt-8 text-xs text-parchemin-100/40">
-        Sources : {REPERES_LEGAUX_SENEGAL.texteReference} ; {REPERES_LEGAUX_SENEGAL.texteComplementaire}.
-      </p>
-    </main>
+      </main>
+    </>
   );
 }

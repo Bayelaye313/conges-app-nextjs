@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@netlify/blobs": "^11.1.7",
+    "lucide-react": "^1.67.0",
     "next": "^15.5.28",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

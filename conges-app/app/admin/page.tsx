@@ -2,8 +2,34 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { appelApi, dateRetour, formatFr, RedirectionEnCours, STATUTS_VOEU } from "@/lib/client";
+import {
+  Check,
+  CheckCheck,
+  CheckCircle2,
+  Clock,
+  DatabaseBackup,
+  Download,
+  KeyRound,
+  RefreshCw,
+  Search,
+  Trash2,
+  TrendingUp,
+  UserX
+} from "lucide-react";
+import {
+  Alerte,
+  BadgeStatut,
+  BarreNavigation,
+  Bouton,
+  Carte,
+  Chargement,
+  classesBouton,
+  cx,
+  EcranErreur,
+  EnTete,
+  Indicateur
+} from "@/components/ui";
+import { appelApi, dateRetour, formatFr, RedirectionEnCours } from "@/lib/client";
 
 type Role = "AV" | "CEV" | "CS";
 
@@ -79,16 +105,6 @@ interface Synthese {
 }
 
 type Onglet = "voeux" | "sans_voeu" | "agents" | "occupation";
-
-function Kpi({ titre, valeur, detail, accent }: { titre: string; valeur: string | number; detail?: string; accent?: boolean }) {
-  return (
-    <div className="card rounded-card px-4 py-3">
-      <p className="eyebrow text-parchemin-100/50">{titre}</p>
-      <p className={`mt-1 font-display text-2xl ${accent ? "text-cachet-light" : "text-parchemin-50"}`}>{valeur}</p>
-      {detail && <p className="font-mono text-[11px] text-parchemin-100/40">{detail}</p>}
-    </div>
-  );
-}
 
 function correspond(recherche: string, ...champs: string[]) {
   const r = recherche.trim().toLowerCase();
@@ -171,11 +187,6 @@ export default function AdminPage() {
     }
   }
 
-  async function deconnecter() {
-    await fetch("/api/auth/deconnexion", { method: "POST" }).catch(() => undefined);
-    router.replace("/");
-  }
-
   const demandesFiltrees = useMemo(
     () =>
       (s?.demandes ?? []).filter(
@@ -198,251 +209,313 @@ export default function AdminPage() {
     [s, onglet, filtreRole, recherche]
   );
 
-  if (erreur) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-4 px-4">
-        <p role="alert" className="text-alerte">{erreur}</p>
-        <button onClick={() => router.replace("/")} className="text-cachet-light underline">Retour à l&apos;accueil</button>
-      </main>
-    );
-  }
+  if (erreur) return <EcranErreur message={erreur} />;
   if (!s) {
     return (
-      <main className="flex min-h-screen items-center justify-center">
-        <p className="eyebrow text-parchemin-100/50">Chargement du tableau de bord…</p>
-      </main>
+      <>
+        <BarreNavigation admin />
+        <Chargement texte="Chargement du tableau de bord…" />
+      </>
     );
   }
 
   const { kpis } = s;
-  const lienOnglet = (o: Onglet, libelle: string) => (
+  const lienOnglet = (o: Onglet, libelle: string, nombre?: number) => (
     <button
       onClick={() => setOnglet(o)}
-      className={`rounded-card border px-3 py-1.5 text-sm ${onglet === o ? "border-cachet bg-cachet/10 text-cachet-light" : "border-encre-700 text-parchemin-100/60 hover:text-parchemin-100"}`}
+      className={cx(
+        "flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition",
+        onglet === o ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+      )}
     >
       {libelle}
+      {nombre !== undefined && (
+        <span className={cx("rounded-full px-2 py-0.5 text-xs", onglet === o ? "bg-brand-50 text-brand-700" : "bg-slate-200 text-slate-600")}>{nombre}</span>
+      )}
     </button>
   );
-  const cellule = "px-3 py-2 align-top";
+  const cellule = "px-4 py-3 align-top";
+  const entete = "bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500";
+  const filtre = "h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100";
+  const tonOccupation = (plein: boolean, ratio: number) => (plein ? "bg-rose-500" : ratio >= 0.75 ? "bg-amber-500" : "bg-emerald-500");
+  const agentCellule = (matricule: string, prenom: string, nom: string, role: Role) => (
+    <div className="flex items-center gap-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-bold text-brand-700">
+        {prenom.charAt(0)}{nom.charAt(0)}
+      </span>
+      <div>
+        <p className="font-semibold text-slate-900">{prenom} {nom}</p>
+        <p className="text-xs text-slate-500">{matricule} · {role}</p>
+      </div>
+    </div>
+  );
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="eyebrow text-cachet-light">Administration — campagne des vœux</p>
-          <h1 className="font-display text-3xl font-semibold text-parchemin-50">Tableau de bord</h1>
-          <p className="mt-1 font-mono text-xs text-parchemin-100/40">
-            {s.admin.nom} ({s.admin.matricule}) · données du {new Date(s.genere_le).toLocaleString("fr-FR")}
-            <button onClick={charger} className="ml-3 underline hover:text-parchemin-100">Actualiser</button>
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <a href="/api/admin/export?type=voeux" className="rounded-card bg-cachet px-3 py-2 font-medium text-encre-950 hover:bg-cachet-light">Exporter les vœux (CSV)</a>
-          <a href="/api/admin/export?type=agents" className="rounded-card border border-cachet px-3 py-2 text-cachet-light hover:bg-cachet/10">Exporter les agents (CSV)</a>
-          <a href="/api/admin/export?type=registre" className="rounded-card border border-encre-700 px-3 py-2 text-parchemin-100/70 hover:border-cachet/50">Sauvegarde (JSON)</a>
-          <Link href="/compte" className="eyebrow ml-2 text-parchemin-100/40 hover:text-parchemin-100/70">Mon code</Link>
-          <button onClick={deconnecter} className="eyebrow text-parchemin-100/40 hover:text-parchemin-100/70">Déconnexion</button>
-        </div>
-      </div>
+    <>
+      <BarreNavigation admin />
+      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        <EnTete
+          surtitre="Campagne des vœux"
+          titre="Tableau de bord"
+          description={
+            <span className="flex flex-wrap items-center gap-2 text-sm">
+              {s.admin.nom} ({s.admin.matricule}) · données du {new Date(s.genere_le).toLocaleString("fr-FR")}
+              <Bouton variante="fantome" taille="sm" onClick={charger}>
+                <RefreshCw className="h-4 w-4" aria-hidden /> Actualiser
+              </Bouton>
+            </span>
+          }
+          actions={
+            <>
+              <a href="/api/admin/export?type=voeux" className={classesBouton("primaire", "md")}>
+                <Download className="h-4 w-4" aria-hidden /> Vœux (CSV)
+              </a>
+              <a href="/api/admin/export?type=agents" className={classesBouton("secondaire", "md")}>
+                <Download className="h-4 w-4" aria-hidden /> Agents (CSV)
+              </a>
+              <a href="/api/admin/export?type=registre" className={classesBouton("secondaire", "md")}>
+                <DatabaseBackup className="h-4 w-4" aria-hidden /> Sauvegarde
+              </a>
+            </>
+          }
+        />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <Kpi titre="Taux de soumission" valeur={`${kpis.taux_soumission} %`} detail={`${kpis.agents_ayant_soumis} / ${kpis.agents} agents`} accent />
-        <Kpi titre="Sans vœu" valeur={kpis.agents_sans_voeu} detail="agents à relancer" />
-        <Kpi titre="Vœux en attente" valeur={kpis.voeux_en_attente} detail="à valider" accent={kpis.voeux_en_attente > 0} />
-        <Kpi titre="Vœux validés" valeur={kpis.voeux_valides} detail={`${kpis.voeux_supprimes} supprimé(s)`} />
-        <Kpi titre="Jours demandés" valeur={kpis.jours_demandes} detail="vœux actifs" />
-        <Kpi titre="Codes choisis" valeur={`${kpis.agents_connectes} / ${kpis.agents}`} detail="agents déjà connectés" />
-        <Kpi titre="Moins d'un an" valeur={kpis.agents_moins_un_an} detail="départ à la date anniversaire" />
-        <Kpi titre={`Solde < ${s.minJours} j`} valeur={kpis.agents_solde_insuffisant_aujourdhui} detail="aujourd'hui (+2 j/mois)" />
-        {(["AV", "CEV", "CS"] as Role[]).map((r) => (
-          <Kpi
-            key={r}
-            titre={`Soumission ${r}`}
-            valeur={`${kpis.par_role[r].ayant_soumis} / ${kpis.par_role[r].agents}`}
-            detail={kpis.par_role[r].agents ? `${Math.round((kpis.par_role[r].ayant_soumis / kpis.par_role[r].agents) * 100)} %` : ""}
-          />
-        ))}
-      </div>
-
-      {codeAffiche && (
-        <div role="status" className="mt-6 rounded-card border border-cachet bg-cachet/10 px-5 py-4 text-sm text-parchemin-50">
-          Code provisoire de <strong>{codeAffiche.nom}</strong> ({codeAffiche.matricule}) :{" "}
-          <span className="select-all rounded bg-encre-950 px-2 py-1 font-mono text-lg tracking-wider text-cachet-light">{codeAffiche.code}</span>
-          <p className="mt-2 text-xs text-parchemin-100/60">
-            Notez-le maintenant : il ne sera plus affiché. L&apos;agent devra choisir son propre code à la première connexion.
-          </p>
-          <button onClick={() => setCodeAffiche(null)} className="mt-2 text-xs underline">J&apos;ai transmis le code</button>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Carte className="p-5">
+            <div className="flex items-start justify-between">
+              <p className="text-sm font-medium text-slate-500">Taux de soumission</p>
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-600"><TrendingUp className="h-5 w-5" aria-hidden /></span>
+            </div>
+            <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{kpis.taux_soumission} %</p>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full rounded-full bg-brand-500" style={{ width: `${Math.min(kpis.taux_soumission, 100)}%` }} />
+            </div>
+            <p className="mt-2 text-sm text-slate-500">{kpis.agents_ayant_soumis} / {kpis.agents} agents</p>
+          </Carte>
+          <Indicateur titre="Vœux en attente" icone={Clock} ton={kpis.voeux_en_attente > 0 ? "amber" : "slate"} valeur={kpis.voeux_en_attente} detail="à valider" />
+          <Indicateur titre="Vœux validés" icone={CheckCircle2} ton="emerald" valeur={kpis.voeux_valides} detail={`${kpis.voeux_supprimes} supprimé(s)`} />
+          <Indicateur titre="Sans vœu" icone={UserX} ton="rose" valeur={kpis.agents_sans_voeu} detail="agents à relancer" />
         </div>
-      )}
-      {message && <p className="mt-4 text-sm text-parchemin-100/70">{message}</p>}
 
-      <div className="mt-8 flex flex-wrap items-center gap-2">
-        {lienOnglet("voeux", `Vœux (${s.demandes.length})`)}
-        {lienOnglet("sans_voeu", `Sans vœu (${kpis.agents_sans_voeu})`)}
-        {lienOnglet("agents", `Tous les agents (${kpis.agents})`)}
-        {lienOnglet("occupation", "Occupation par quinzaine")}
-        {onglet !== "occupation" && (
-          <div className="ml-auto flex flex-wrap gap-2">
-            <input
-              value={recherche}
-              onChange={(e) => setRecherche(e.target.value)}
-              placeholder="Matricule ou nom…"
-              className="rounded-card border border-encre-700 bg-encre-900 px-3 py-1.5 text-sm text-parchemin-50"
-            />
-            <select value={filtreRole} onChange={(e) => setFiltreRole(e.target.value as typeof filtreRole)} className="rounded-card border border-encre-700 bg-encre-900 px-2 py-1.5 text-sm text-parchemin-50">
-              <option value="tous">Tous rôles</option>
-              <option value="AV">AV</option>
-              <option value="CEV">CEV</option>
-              <option value="CS">CS</option>
-            </select>
-            {onglet === "voeux" && (
-              <select value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value as typeof filtreStatut)} className="rounded-card border border-encre-700 bg-encre-900 px-2 py-1.5 text-sm text-parchemin-50">
-                <option value="tous">Tous statuts</option>
-                <option value="en_attente">En attente</option>
-                <option value="valide">Validés</option>
-                <option value="supprime">Supprimés</option>
-              </select>
-            )}
+        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
+          {[
+            { titre: "Jours demandés", valeur: kpis.jours_demandes, detail: "vœux actifs" },
+            { titre: "Codes choisis", valeur: `${kpis.agents_connectes} / ${kpis.agents}`, detail: "déjà connectés" },
+            { titre: "Moins d'un an", valeur: kpis.agents_moins_un_an, detail: "départ à l'anniversaire" },
+            { titre: `Solde < ${s.minJours} j`, valeur: kpis.agents_solde_insuffisant_aujourdhui, detail: "aujourd'hui" },
+            ...(["AV", "CEV", "CS"] as Role[]).map((r) => ({
+              titre: `Soumission ${r}`,
+              valeur: `${kpis.par_role[r].ayant_soumis} / ${kpis.par_role[r].agents}`,
+              detail: kpis.par_role[r].agents ? `${Math.round((kpis.par_role[r].ayant_soumis / kpis.par_role[r].agents) * 100)} %` : ""
+            }))
+          ].map((k) => (
+            <div key={k.titre} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+              <p className="text-xs font-medium text-slate-500">{k.titre}</p>
+              <p className="mt-1 text-xl font-bold text-slate-900">{k.valeur}</p>
+              {k.detail && <p className="text-xs text-slate-500">{k.detail}</p>}
+            </div>
+          ))}
+        </div>
+
+        {codeAffiche && (
+          <Alerte type="info" role="status" className="mt-6">
+            <p>
+              Code provisoire de <strong>{codeAffiche.nom}</strong> ({codeAffiche.matricule}) :{" "}
+              <span className="ml-1 select-all rounded-lg bg-white px-3 py-1 font-mono text-lg font-semibold tracking-wider text-brand-700 ring-1 ring-brand-200">{codeAffiche.code}</span>
+            </p>
+            <p className="mt-2 text-sm">
+              Notez-le maintenant : il ne sera plus affiché. L&apos;agent devra choisir son propre code à la première connexion.
+            </p>
+            <Bouton variante="secondaire" taille="sm" className="mt-3" onClick={() => setCodeAffiche(null)}>J&apos;ai transmis le code</Bouton>
+          </Alerte>
+        )}
+        {message && <Alerte type="info" role="status" className="mt-4">{message}</Alerte>}
+
+        <div className="mt-8 flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1">
+            {lienOnglet("voeux", "Vœux", s.demandes.length)}
+            {lienOnglet("sans_voeu", "Sans vœu", kpis.agents_sans_voeu)}
+            {lienOnglet("agents", "Agents", kpis.agents)}
+            {lienOnglet("occupation", "Occupation")}
           </div>
-        )}
-      </div>
-
-      <div className="card mt-3 overflow-x-auto rounded-card">
-        {onglet === "voeux" && (
-          <>
-            {demandesFiltrees.some((d) => d.statut === "en_attente") && (
-              <div className="flex justify-end border-b border-encre-700 px-3 py-2">
-                <button disabled={enCours !== null} onClick={() => validerTout(demandesFiltrees)} className="text-xs text-succes underline disabled:opacity-50">
-                  Valider tous les vœux en attente affichés
-                </button>
+          {onglet !== "occupation" && (
+            <div className="ml-auto flex flex-wrap gap-2">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
+                <input
+                  value={recherche}
+                  onChange={(e) => setRecherche(e.target.value)}
+                  placeholder="Matricule ou nom…"
+                  className={cx(filtre, "w-56 pl-9")}
+                />
               </div>
-            )}
-            <table className="w-full text-sm text-parchemin-100/80">
-              <thead className="eyebrow text-left text-parchemin-100/40">
-                <tr><th className={cellule}>Agent</th><th className={cellule}>Départ → retour</th><th className={cellule}>Jours</th><th className={cellule}>Soumis le</th><th className={cellule}>Statut</th><th className={cellule}></th></tr>
-              </thead>
-              <tbody className="divide-y divide-encre-700">
-                {demandesFiltrees.length === 0 && (
-                  <tr><td colSpan={6} className="px-3 py-6 text-center text-parchemin-100/40">Aucun vœu pour ces filtres.</td></tr>
-                )}
-                {demandesFiltrees.map((d) => (
-                  <tr key={d.id}>
-                    <td className={cellule}>
-                      <span className="font-mono text-parchemin-50">{d.matricule}</span> {d.prenom} {d.nom}
-                      <span className="ml-1 text-xs text-parchemin-100/40">{d.role}</span>
-                    </td>
-                    <td className={`${cellule} font-mono`}>
-                      {d.periodes.map((p) => (
-                        <div key={p.debut}>{formatFr(p.debut)} → {formatFr(dateRetour(p.fin))}</div>
-                      ))}
-                    </td>
-                    <td className={cellule}>{d.jours}</td>
-                    <td className={`${cellule} font-mono text-xs`}>{formatFr(d.cree_le.slice(0, 10))}</td>
-                    <td className={cellule}>
-                      <span className={`rounded border px-2 py-0.5 text-xs ${STATUTS_VOEU[d.statut].classe}`}>{STATUTS_VOEU[d.statut].libelle}</span>
-                      {d.motif && <div className="mt-1 text-xs text-parchemin-100/40">{d.motif}</div>}
-                    </td>
-                    <td className={`${cellule} whitespace-nowrap text-right`}>
-                      {d.statut === "en_attente" && (
-                        <button disabled={enCours !== null} onClick={() => traiter(d, "valider")} className="mr-3 text-xs text-succes underline disabled:opacity-50">Valider</button>
-                      )}
-                      {d.statut !== "supprime" && (
-                        <button disabled={enCours !== null} onClick={() => traiter(d, "supprimer")} className="text-xs text-alerte underline disabled:opacity-50">Supprimer</button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
-
-        {(onglet === "sans_voeu" || onglet === "agents") && (
-          <table className="w-full text-sm text-parchemin-100/80">
-            <thead className="eyebrow text-left text-parchemin-100/40">
-              <tr>
-                <th className={cellule}>Agent</th><th className={cellule}>Entrée</th><th className={cellule}>Solde auj.</th>
-                <th className={cellule}>1er départ possible</th><th className={cellule}>Solde à cette date</th>
-                {onglet === "agents" && <th className={cellule}>Vœux</th>}
-                <th className={cellule}>Accès</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-encre-700">
-              {agentsFiltres.length === 0 && (
-                <tr><td colSpan={7} className="px-3 py-6 text-center text-parchemin-100/40">Aucun agent pour ces filtres.</td></tr>
+              <select value={filtreRole} onChange={(e) => setFiltreRole(e.target.value as typeof filtreRole)} className={filtre}>
+                <option value="tous">Tous rôles</option>
+                <option value="AV">AV</option>
+                <option value="CEV">CEV</option>
+                <option value="CS">CS</option>
+              </select>
+              {onglet === "voeux" && (
+                <select value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value as typeof filtreStatut)} className={filtre}>
+                  <option value="tous">Tous statuts</option>
+                  <option value="en_attente">En attente</option>
+                  <option value="valide">Validés</option>
+                  <option value="supprime">Supprimés</option>
+                </select>
               )}
-              {agentsFiltres.map((a) => (
-                <tr key={a.matricule}>
-                  <td className={cellule}>
-                    <span className="font-mono text-parchemin-50">{a.matricule}</span> {a.prenom} {a.nom}
-                    <span className="ml-1 text-xs text-parchemin-100/40">{a.role}</span>
-                  </td>
-                  <td className={`${cellule} font-mono text-xs`}>
-                    {formatFr(a.date_embauche)}
-                    {a.date_anniversaire > s.genere_le.slice(0, 10) && (
-                      <div className="text-cachet-light">1 an le {formatFr(a.date_anniversaire)}</div>
-                    )}
-                  </td>
-                  <td className={`${cellule} ${a.solde < 0 ? "text-alerte" : ""}`}>{a.solde}</td>
-                  <td className={`${cellule} font-mono text-xs`}>{formatFr(a.premiere_date_possible)}</td>
-                  <td className={cellule}>
-                    {a.solde_a_cette_date}
-                    {a.solde_a_cette_date < s.minJours && (
-                      <div className="text-xs text-cachet-light">
-                        {a.date_solde_suffisant ? `≥ ${s.minJours} j le ${formatFr(a.date_solde_suffisant)}` : `< ${s.minJours} j sur 18 mois`}
-                      </div>
-                    )}
-                  </td>
-                  {onglet === "agents" && <td className={cellule}>{a.voeux_actifs || "—"}</td>}
-                  <td className={`${cellule} whitespace-nowrap text-xs`}>
-                    <span className={a.code_change ? "text-succes" : "text-parchemin-100/40"}>
-                      {a.code_change ? "connecté" : a.a_code ? "code provisoire" : "aucun code"}
-                    </span>
-                    <button onClick={() => nouveauCode(a)} className="ml-2 text-cachet-light underline">nouveau code</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+            </div>
+          )}
+        </div>
 
-        {onglet === "occupation" && (
-          <table className="w-full text-sm text-parchemin-100/80">
-            <thead className="eyebrow text-left text-parchemin-100/40">
-              <tr>
-                <th className={cellule}>Quinzaine</th>
-                {(["AV", "CEV", "CS"] as Role[]).map((r) => (
-                  <th key={r} className={cellule}>{r} ({s.plafonds[r] === null ? "sans plafond" : `plafond ${s.plafonds[r]}`})</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-encre-700">
-              {s.occupation.AV.map((q, i) => (
-                <tr key={q.cle}>
-                  <td className={`${cellule} font-mono`}>{q.libelle}</td>
-                  {(["AV", "CEV", "CS"] as Role[]).map((r) => {
-                    const o = s.occupation[r][i];
-                    const plein = o.plafond !== null && o.absents >= o.plafond;
-                    const ratio = o.plafond ? o.absents / o.plafond : 0;
-                    return (
-                      <td key={r} className={cellule}>
-                        <span className={plein ? "font-semibold text-alerte" : ratio >= 0.75 ? "text-cachet-light" : ""}>
-                          {o.absents}{o.plafond !== null ? ` / ${o.plafond}` : ""}
-                        </span>
-                        {o.plafond !== null && (
-                          <div className="mt-1 h-1.5 w-28 overflow-hidden rounded-sm bg-encre-800">
-                            <div className="h-full" style={{ width: `${Math.min(ratio, 1) * 100}%`, backgroundColor: plein ? "#B4483A" : ratio >= 0.75 ? "#C1793A" : "#3E7A5E" }} />
+        <Carte className="mt-4 overflow-hidden">
+          <div className="overflow-x-auto">
+            {onglet === "voeux" && (
+              <>
+                {demandesFiltrees.some((d) => d.statut === "en_attente") && (
+                  <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-amber-50/60 px-4 py-3">
+                    <p className="text-sm text-amber-900">
+                      {demandesFiltrees.filter((d) => d.statut === "en_attente").length} vœu(x) en attente dans cette liste
+                    </p>
+                    <Bouton variante="succes" taille="sm" disabled={enCours !== null} onClick={() => validerTout(demandesFiltrees)}>
+                      <CheckCheck className="h-4 w-4" aria-hidden /> Tout valider
+                    </Bouton>
+                  </div>
+                )}
+                <table className="w-full text-sm text-slate-700">
+                  <thead className={entete}>
+                    <tr><th className={cellule}>Agent</th><th className={cellule}>Départ → retour</th><th className={cellule}>Jours</th><th className={cellule}>Soumis le</th><th className={cellule}>Statut</th><th className={cellule}></th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {demandesFiltrees.length === 0 && (
+                      <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-500">Aucun vœu pour ces filtres.</td></tr>
+                    )}
+                    {demandesFiltrees.map((d) => (
+                      <tr key={d.id} className="transition hover:bg-slate-50">
+                        <td className={cellule}>{agentCellule(d.matricule, d.prenom, d.nom, d.role)}</td>
+                        <td className={cellule}>
+                          {d.periodes.map((p) => (
+                            <div key={p.debut} className="font-medium text-slate-900">{formatFr(p.debut)} → {formatFr(dateRetour(p.fin))}</div>
+                          ))}
+                        </td>
+                        <td className={`${cellule} font-semibold text-slate-900`}>{d.jours}</td>
+                        <td className={`${cellule} text-slate-500`}>{formatFr(d.cree_le.slice(0, 10))}</td>
+                        <td className={cellule}>
+                          <BadgeStatut statut={d.statut} />
+                          {d.motif && <div className="mt-1 max-w-[14rem] text-xs text-slate-500">{d.motif}</div>}
+                        </td>
+                        <td className={`${cellule} whitespace-nowrap text-right`}>
+                          <div className="flex justify-end gap-1">
+                            {d.statut === "en_attente" && (
+                              <Bouton variante="secondaire" taille="sm" disabled={enCours !== null} onClick={() => traiter(d, "valider")} className="text-emerald-700">
+                                <Check className="h-4 w-4" aria-hidden /> Valider
+                              </Bouton>
+                            )}
+                            {d.statut !== "supprime" && (
+                              <Bouton variante="danger" taille="sm" disabled={enCours !== null} onClick={() => traiter(d, "supprimer")} title="Supprimer">
+                                <Trash2 className="h-4 w-4" aria-hidden />
+                              </Bouton>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+
+            {(onglet === "sans_voeu" || onglet === "agents") && (
+              <table className="w-full text-sm text-slate-700">
+                <thead className={entete}>
+                  <tr>
+                    <th className={cellule}>Agent</th><th className={cellule}>Entrée</th><th className={cellule}>Solde auj.</th>
+                    <th className={cellule}>1er départ possible</th><th className={cellule}>Solde à cette date</th>
+                    {onglet === "agents" && <th className={cellule}>Vœux</th>}
+                    <th className={cellule}>Accès</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {agentsFiltres.length === 0 && (
+                    <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">Aucun agent pour ces filtres.</td></tr>
+                  )}
+                  {agentsFiltres.map((a) => (
+                    <tr key={a.matricule} className="transition hover:bg-slate-50">
+                      <td className={cellule}>{agentCellule(a.matricule, a.prenom, a.nom, a.role)}</td>
+                      <td className={cellule}>
+                        {formatFr(a.date_embauche)}
+                        {a.date_anniversaire > s.genere_le.slice(0, 10) && (
+                          <div className="text-xs font-medium text-amber-700">1 an le {formatFr(a.date_anniversaire)}</div>
+                        )}
+                      </td>
+                      <td className={`${cellule} font-semibold ${a.solde < 0 ? "text-rose-600" : "text-slate-900"}`}>{a.solde}</td>
+                      <td className={cellule}>{formatFr(a.premiere_date_possible)}</td>
+                      <td className={cellule}>
+                        <span className="font-semibold text-slate-900">{a.solde_a_cette_date}</span>
+                        {a.solde_a_cette_date < s.minJours && (
+                          <div className="text-xs font-medium text-amber-700">
+                            {a.date_solde_suffisant ? `≥ ${s.minJours} j le ${formatFr(a.date_solde_suffisant)}` : `< ${s.minJours} j sur 18 mois`}
                           </div>
                         )}
                       </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </main>
+                      {onglet === "agents" && <td className={cellule}>{a.voeux_actifs || "—"}</td>}
+                      <td className={`${cellule} whitespace-nowrap`}>
+                        <div className="flex items-center gap-2">
+                          <span className={cx(
+                            "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset",
+                            a.code_change ? "bg-emerald-50 text-emerald-700 ring-emerald-600/20" : a.a_code ? "bg-amber-50 text-amber-700 ring-amber-600/20" : "bg-slate-100 text-slate-600 ring-slate-500/20"
+                          )}>
+                            {a.code_change ? "Connecté" : a.a_code ? "Code provisoire" : "Aucun code"}
+                          </span>
+                          <Bouton variante="fantome" taille="sm" onClick={() => nouveauCode(a)} title="Générer un nouveau code">
+                            <KeyRound className="h-4 w-4" aria-hidden />
+                          </Bouton>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {onglet === "occupation" && (
+              <table className="w-full text-sm text-slate-700">
+                <thead className={entete}>
+                  <tr>
+                    <th className={cellule}>Quinzaine</th>
+                    {(["AV", "CEV", "CS"] as Role[]).map((r) => (
+                      <th key={r} className={cellule}>{r} <span className="font-normal normal-case">({s.plafonds[r] === null ? "sans plafond" : `plafond ${s.plafonds[r]}`})</span></th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {s.occupation.AV.map((q, i) => (
+                    <tr key={q.cle} className="transition hover:bg-slate-50">
+                      <td className={`${cellule} font-semibold capitalize text-slate-900`}>{q.libelle}</td>
+                      {(["AV", "CEV", "CS"] as Role[]).map((r) => {
+                        const o = s.occupation[r][i];
+                        const plein = o.plafond !== null && o.absents >= o.plafond;
+                        const ratio = o.plafond ? o.absents / o.plafond : 0;
+                        return (
+                          <td key={r} className={cellule}>
+                            <span className={plein ? "font-bold text-rose-600" : ratio >= 0.75 ? "font-semibold text-amber-700" : "text-slate-900"}>
+                              {o.absents}{o.plafond !== null ? ` / ${o.plafond}` : ""}
+                            </span>
+                            {o.plafond !== null && (
+                              <div className="mt-1.5 h-2 w-32 overflow-hidden rounded-full bg-slate-100">
+                                <div className={`h-full rounded-full ${tonOccupation(plein, ratio)}`} style={{ width: `${Math.min(ratio, 1) * 100}%` }} />
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </Carte>
+      </main>
+    </>
   );
 }

@@ -2,6 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { CalendarCheck2, Loader2, Lock, Palmtree, ShieldCheck, UserRound, Wallet } from "lucide-react";
+import { Alerte, Bouton, Logo } from "@/components/ui";
+
+const ATOUTS = [
+  { icone: Wallet, titre: "Votre solde en temps réel", texte: "Jours acquis, jours pris et projection mois par mois." },
+  { icone: CalendarCheck2, titre: "Des places visibles", texte: "Choisissez une quinzaine en voyant les places restantes." },
+  { icone: ShieldCheck, titre: "Équitable et transparent", texte: "Les mêmes règles s'appliquent à tous les agents." }
+];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,71 +43,102 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
-      <div
-        className="pointer-events-none absolute inset-0 bg-grain opacity-40"
-        style={{ backgroundSize: "18px 18px" }}
-      />
+    <main className="grid min-h-screen lg:grid-cols-2">
+      <section className="relative hidden overflow-hidden bg-gradient-to-br from-brand-600 via-brand-700 to-brand-900 p-12 text-white lg:flex lg:flex-col lg:justify-between">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-sky-400/20 blur-3xl" />
 
-      <div className="relative w-full max-w-md">
-        <p className="eyebrow mb-3 text-center text-cachet-light">
-          Registre des congés — service de terrain
-        </p>
-
-        <div className="card stamp-border rounded-card px-8 py-10 shadow-2xl shadow-black/40">
-          <h1 className="font-display text-3xl font-semibold leading-tight text-parchemin-50">
-            Ouvrir mon dossier
-          </h1>
-          <p className="mt-2 text-sm text-parchemin-100/70">
-            Entrez votre matricule et votre code d&apos;accès pour consulter votre solde et déposer
-            vos vœux de congé.
-          </p>
-
-          <form onSubmit={ouvrirDossier} className="mt-8 space-y-4">
-            <label className="block">
-              <span className="eyebrow text-parchemin-100/60">Matricule</span>
-              <input
-                autoFocus
-                autoComplete="username"
-                inputMode="numeric"
-                value={matricule}
-                onChange={(e) => setMatricule(e.target.value)}
-                placeholder="ex. 0291"
-                className="mt-2 w-full rounded-card border border-encre-700 bg-encre-900 px-4 py-3 font-mono text-lg tracking-wide text-parchemin-50 placeholder:text-parchemin-100/30 focus:border-cachet"
-              />
-            </label>
-
-            <label className="block">
-              <span className="eyebrow text-parchemin-100/60">Code d&apos;accès</span>
-              <input
-                type="password"
-                autoComplete="current-password"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                className="mt-2 w-full rounded-card border border-encre-700 bg-encre-900 px-4 py-3 font-mono text-lg tracking-wide text-parchemin-50 focus:border-cachet"
-              />
-            </label>
-
-            {erreur && (
-              <p role="alert" className="rounded-card border border-alerte/40 bg-alerte/10 px-4 py-3 text-sm text-alerte">
-                {erreur}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={chargement || matricule.trim().length === 0 || code.length === 0}
-              className="w-full rounded-card bg-cachet px-4 py-3 font-medium text-encre-950 transition hover:bg-cachet-light disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {chargement ? "Vérification…" : "Consulter mon dossier"}
-            </button>
-          </form>
+        <div className="relative flex items-center gap-2.5 text-lg font-bold">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25">
+            <Palmtree className="h-5 w-5" aria-hidden />
+          </span>
+          Mes Congés
         </div>
 
-        <p className="mt-6 text-center text-xs text-parchemin-100/40">
-          Code oublié ? Adressez-vous à l&apos;administration pour obtenir un nouveau code provisoire.
-        </p>
-      </div>
+        <div className="relative max-w-md">
+          <h2 className="text-4xl font-extrabold leading-tight tracking-tight">
+            Préparez vos congés en toute sérénité.
+          </h2>
+          <p className="mt-4 text-lg text-brand-100">
+            Consultez vos droits et déposez vos vœux en quelques clics, depuis le terrain ou depuis chez vous.
+          </p>
+          <ul className="mt-10 space-y-5">
+            {ATOUTS.map(({ icone: Icone, titre, texte }) => (
+              <li key={titre} className="flex gap-4">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/20">
+                  <Icone className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <p className="font-semibold">{titre}</p>
+                  <p className="text-[15px] text-brand-100">{texte}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <p className="relative text-sm text-brand-200">Service de terrain — campagne des vœux de congé</p>
+      </section>
+
+      <section className="flex items-center justify-center px-5 py-12 sm:px-10">
+        <div className="w-full max-w-md">
+          <div className="lg:hidden"><Logo /></div>
+
+          <h1 className="mt-8 text-3xl font-bold tracking-tight text-slate-900 lg:mt-0">Bonjour 👋</h1>
+          <p className="mt-2 text-base text-slate-600">
+            Connectez-vous avec votre matricule et votre code d&apos;accès pour accéder à votre espace.
+          </p>
+
+          <form onSubmit={ouvrirDossier} className="mt-8 space-y-5">
+            <label className="block">
+              <span className="libelle">Matricule</span>
+              <div className="relative">
+                <UserRound className="pointer-events-none absolute left-4 top-1/2 mt-[3px] h-5 w-5 -translate-y-1/2 text-slate-400" aria-hidden />
+                <input
+                  autoFocus
+                  autoComplete="username"
+                  inputMode="numeric"
+                  value={matricule}
+                  onChange={(e) => setMatricule(e.target.value)}
+                  placeholder="ex. 0291"
+                  className="champ pl-12 text-lg tracking-wide"
+                />
+              </div>
+            </label>
+
+            <label className="block">
+              <span className="libelle">Code d&apos;accès</span>
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-4 top-1/2 mt-[3px] h-5 w-5 -translate-y-1/2 text-slate-400" aria-hidden />
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="••••••••"
+                  className="champ pl-12 text-lg tracking-wide"
+                />
+              </div>
+            </label>
+
+            {erreur && <Alerte type="erreur">{erreur}</Alerte>}
+
+            <Bouton
+              type="submit"
+              taille="lg"
+              className="w-full"
+              disabled={chargement || matricule.trim().length === 0 || code.length === 0}
+            >
+              {chargement && <Loader2 className="h-5 w-5 animate-spin" aria-hidden />}
+              {chargement ? "Vérification…" : "Se connecter"}
+            </Bouton>
+          </form>
+
+          <p className="mt-8 rounded-xl bg-slate-100 px-4 py-3 text-sm text-slate-600">
+            Code oublié ? Adressez-vous à l&apos;administration pour obtenir un nouveau code provisoire.
+          </p>
+        </div>
+      </section>
     </main>
   );
 }
