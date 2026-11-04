@@ -5,22 +5,24 @@ import {
   chargerRegistre,
   CONFIG,
   construirePeriodes,
-  joursAcquis,
-  joursPris,
+  projeterSolde,
   soumettreDemande,
-  strToDate,
   trouverAgent,
   verifierDemande
 } from "@/lib/conges";
+import { detailDecompte } from "@/lib/calendrier";
 import { exigerAgent } from "@/lib/auth";
 import { erreur, lireCorps, refusSession } from "@/lib/api";
 
-const Corps = z.object({
+const Choix = z.object({
   annee: z.number().int().min(2000).max(2100),
   mois: z.number().int().min(1).max(12),
-  nbParties: z.union([z.literal(1), z.literal(2)]),
-  nbJours: z.number().int().min(1).max(CONFIG.MAX_DAYS),
-  partieChoisie: z.enum(["debut", "fin"]).optional(),
+  partie: z.enum(["debut", "fin"]),
+  nbJours: z.number().int().min(1).max(CONFIG.MAX_DAYS)
+});
+
+const Corps = z.object({
+  periodes: z.array(Choix).min(1).max(2),
   confirmer: z.boolean().optional()
 });
 
@@ -30,9 +32,9 @@ export async function POST(req: NextRequest) {
 
   const corps = await lireCorps(req, Corps);
   if (!corps.ok) return corps.reponse;
-  const { annee, mois, nbParties, nbJours, partieChoisie, confirmer } = corps.data;
+  const { confirmer } = corps.data;
 
-  const construction = construirePeriodes(annee, mois, nbParties, nbJours, partieChoisie);
+  const construction = construirePeriodes(corps.data.periodes);
   if (construction.status === "erreur") return erreur(422, construction.message);
   const periodes = construction.periodes;
 
@@ -47,12 +49,21 @@ export async function POST(req: NextRequest) {
   const verif = verifierDemande(registre, agent, periodes, aujourdhuiUTC());
   if (!verif.ok) return erreur(422, verif.message);
 
-  const depart = strToDate(periodes[0].debut);
+  const soldes = projeterSolde(agent, periodes).filter((s) => s.nouvelle);
   return NextResponse.json({
     ok: true,
     apercu: true,
-    periodes,
-    nbJours,
-    soldeAuDepart: joursAcquis(agent.date_embauche, depart) - joursPris(agent)
+    nbJours: periodes.reduce((s, p) => s + p.jours, 0),
+    periodes: periodes.map((p, i) => {
+      const d = detailDecompte(p.debut, p.fin);
+      return {
+        ...p,
+        calendaires: d.calendaires,
+        dimanches: d.dimanches,
+        feries: d.feries,
+        soldeAvant: soldes[i].avant,
+        soldeApres: soldes[i].apres
+      };
+    })
   });
 }

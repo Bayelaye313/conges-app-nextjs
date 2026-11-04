@@ -118,3 +118,81 @@ export function etendrePeriode(depart: Date, nbJours: number): { debut: Date; fi
   }
   return { debut, fin: d };
 }
+
+/** Nom de la fête sans la mention « (estimation) ». */
+function nomCourt(nom: string): string {
+  return nom.replace(/\s*\(estimation\)/g, "");
+}
+
+export interface JourFerie {
+  date: string;
+  nom: string;
+}
+
+/** Jours fériés (hors dimanche) compris entre deux dates, bornes incluses. */
+export function feriesEntre(debut: string, fin: string): JourFerie[] {
+  const res: JourFerie[] = [];
+  const d = new Date(`${debut}T00:00:00Z`);
+  const f = new Date(`${fin}T00:00:00Z`);
+  while (d <= f) {
+    const nom = joursFeries(d.getUTCFullYear()).get(iso(d));
+    if (nom && d.getUTCDay() !== 0) res.push({ date: iso(d), nom: nomCourt(nom) });
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return res;
+}
+
+/** Détail du décompte d'une période : jours calendaires, dimanches et fériés exclus. */
+export function detailDecompte(debut: string, fin: string) {
+  let calendaires = 0;
+  let dimanches = 0;
+  const d = new Date(`${debut}T00:00:00Z`);
+  const f = new Date(`${fin}T00:00:00Z`);
+  while (d <= f) {
+    calendaires++;
+    if (d.getUTCDay() === 0) dimanches++;
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  const feries = feriesEntre(debut, fin);
+  return { calendaires, dimanches, feries, decomptes: calendaires - dimanches - feries.length };
+}
+
+/**
+ * Fêtes « exclusives » : dans chaque groupe, un agent ne peut être en congé
+ * que pour UNE des deux fêtes sur une même année (Korité OU Tabaski, Magal
+ * OU Gamou). `prefixe` reprend le nom de FETES_MUSULMANES.
+ */
+export const FETES_EXCLUSIVES = [
+  {
+    titre: "Korité ou Tabaski",
+    fetes: [
+      { prefixe: "Korité", nom: "Korité", libelle: "la Korité" },
+      { prefixe: "Tabaski", nom: "Tabaski", libelle: "la Tabaski" }
+    ]
+  },
+  {
+    titre: "Magal ou Gamou",
+    fetes: [
+      { prefixe: "Grand Magal de Touba", nom: "Grand Magal de Touba", libelle: "le Grand Magal de Touba" },
+      { prefixe: "Maouloud", nom: "Gamou (Maouloud)", libelle: "le Gamou" }
+    ]
+  }
+] as const;
+
+export interface FeteExclusive {
+  date: string;
+  nom: string; // ex. "Gamou (Maouloud)"
+  libelle: string; // ex. "le Gamou"
+}
+
+/** Pour une année, chaque groupe avec les dates prévues de ses fêtes. */
+export function fetesExclusives(annee: number): { titre: string; fetes: FeteExclusive[] }[] {
+  return FETES_EXCLUSIVES.map((g) => ({
+    titre: g.titre,
+    fetes: g.fetes.flatMap((f) =>
+      Object.entries(FETES_MUSULMANES)
+        .filter(([date, nom]) => date.startsWith(`${annee}-`) && nom.startsWith(f.prefixe))
+        .map(([date]) => ({ date, nom: f.nom, libelle: f.libelle }))
+    )
+  }));
+}

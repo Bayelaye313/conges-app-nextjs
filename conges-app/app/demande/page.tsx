@@ -6,11 +6,29 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, Loader2, SearchCheck, Send } from "lucide-react";
 import { Alerte, BarreNavigation, Bouton, Carte, Chargement, classesBouton, EnTete } from "@/components/ui";
 import { appelApi, dateRetour, formatFr, MOIS_NOMS, RedirectionEnCours } from "@/lib/client";
+import { FETES_EXCLUSIVES, fetesExclusives } from "@/lib/calendrier";
+
+interface PeriodeApercu {
+  debut: string;
+  fin: string;
+  jours: number;
+  calendaires: number;
+  dimanches: number;
+  feries: { date: string; nom: string }[];
+  soldeAvant: number;
+  soldeApres: number;
+}
 
 interface Apercu {
-  periodes: { debut: string; fin: string; jours: number }[];
+  periodes: PeriodeApercu[];
   nbJours: number;
-  soldeAuDepart: number;
+}
+
+interface Choix {
+  annee: number;
+  mois: number;
+  partie: "debut" | "fin";
+  nbJours: number;
 }
 
 function DemandeForm() {
@@ -18,14 +36,16 @@ function DemandeForm() {
   const searchParams = useSearchParams();
   const maintenant = new Date();
   const anneeCourante = maintenant.getUTCFullYear();
+  const annees = [0, 1, 2].map((d) => anneeCourante + d);
 
-  const [annee, setAnnee] = useState(Number(searchParams.get("annee")) || anneeCourante);
-  const [mois, setMois] = useState(Number(searchParams.get("mois")) || maintenant.getUTCMonth() + 1);
-  const [nbParties, setNbParties] = useState<1 | 2>(1);
-  const [nbJours, setNbJours] = useState(11);
-  const [partieChoisie, setPartieChoisie] = useState<"debut" | "fin">(
-    searchParams.get("partie") === "2" ? "fin" : "debut"
-  );
+  const [mode, setMode] = useState<1 | 2>(1);
+  const [choix1, setChoix1] = useState<Choix>({
+    annee: Number(searchParams.get("annee")) || anneeCourante,
+    mois: Number(searchParams.get("mois")) || maintenant.getUTCMonth() + 1,
+    partie: searchParams.get("partie") === "2" ? "fin" : "debut",
+    nbJours: 11
+  });
+  const [choix2, setChoix2] = useState<Choix>(() => ({ ...choix1, nbJours: 6 }));
 
   const [apercu, setApercu] = useState<Apercu | null>(null);
   const [erreur, setErreur] = useState("");
@@ -36,7 +56,13 @@ function DemandeForm() {
   // que ce qui a été prévisualisé.
   useEffect(() => {
     setApercu(null);
-  }, [annee, mois, nbParties, nbJours, partieChoisie]);
+  }, [mode, choix1, choix2]);
+
+  const aujourdhuiStr = maintenant.toISOString().slice(0, 10);
+  const groupesFetes = FETES_EXCLUSIVES.map((g) => ({
+    titre: g.titre,
+    fetes: annees.flatMap((a) => fetesExclusives(a).find((x) => x.titre === g.titre)?.fetes ?? []).filter((f) => f.date > aujourdhuiStr)
+  })).filter((g) => g.fetes.length > 0);
 
   async function envoyer(confirmer: boolean) {
     setErreur("");
@@ -44,11 +70,7 @@ function DemandeForm() {
     setChargement(true);
     try {
       const { data } = await appelApi<Apercu>(router, "/api/demande", {
-        annee,
-        mois,
-        nbParties,
-        nbJours,
-        partieChoisie: nbParties === 1 ? partieChoisie : undefined,
+        periodes: mode === 1 ? [choix1] : [choix1, choix2],
         confirmer
       });
       if (confirmer) {
@@ -77,6 +99,55 @@ function DemandeForm() {
     </span>
   );
 
+  function champsPeriode(c: Choix, maj: (c: Choix) => void, minJours: number) {
+    return (
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="block">
+            <span className="libelle">Mois de départ</span>
+            <select value={c.mois} onChange={(e) => maj({ ...c, mois: Number(e.target.value) })} className="champ">
+              {MOIS_NOMS.map((nom, idx) => (
+                <option key={nom} value={idx + 1}>{nom}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="libelle">Année</span>
+            <select value={c.annee} onChange={(e) => maj({ ...c, annee: Number(e.target.value) })} className="champ">
+              {annees.map((a) => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="libelle">Nombre de jours</span>
+            <input
+              type="number"
+              min={minJours}
+              max={90}
+              value={c.nbJours}
+              onChange={(e) => maj({ ...c, nbJours: Number(e.target.value) })}
+              className="champ font-semibold"
+            />
+          </label>
+        </div>
+        <div>
+          <span className="libelle">Date de départ</span>
+          <div className="mt-1.5 flex flex-col gap-2.5 sm:flex-row">
+            <button type="button" onClick={() => maj({ ...c, partie: "debut" })} className={bouton(c.partie === "debut")}>
+              {puce(c.partie === "debut")} Le 1er du mois
+            </button>
+            <button type="button" onClick={() => maj({ ...c, partie: "fin" })} className={bouton(c.partie === "fin")}>
+              {puce(c.partie === "fin")} Le 16 du mois
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const total = choix1.nbJours + (mode === 2 ? choix2.nbJours : 0);
+
   return (
     <>
       <BarreNavigation />
@@ -89,7 +160,7 @@ function DemandeForm() {
         <EnTete
           surtitre="Nouveau vœu"
           titre="Déposer un vœu de congé"
-          description="Départ le 1er ou le 16 du mois, minimum 11 jours. Les dimanches et jours fériés ne sont pas décomptés. Votre solde est recalculé à la date de départ (+2 jours par mois d'ici là)."
+          description="Départ le 1er ou le 16 du mois, minimum 11 jours. Les dimanches et jours fériés du calendrier sénégalais ne sont pas décomptés : seuls les jours ouvrables posés sont déduits de votre solde, recalculé à la date de départ (+2 jours par mois d'ici là)."
         />
 
         <Carte className="p-5 sm:p-6">
@@ -97,79 +168,69 @@ function DemandeForm() {
             <li>
               <h2 className="flex items-center gap-2.5 text-base font-bold text-slate-900">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600 text-xs text-white">1</span>
-                Quand souhaitez-vous partir ?
+                Comment organiser votre congé ?
               </h2>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <label className="block">
-                  <span className="libelle">Mois de départ</span>
-                  <select value={mois} onChange={(e) => setMois(Number(e.target.value))} className="champ">
-                    {MOIS_NOMS.map((nom, idx) => (
-                      <option key={nom} value={idx + 1}>{nom}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block">
-                  <span className="libelle">Année</span>
-                  <select value={annee} onChange={(e) => setAnnee(Number(e.target.value))} className="champ">
-                    {[0, 1, 2].map((d) => (
-                      <option key={d} value={anneeCourante + d}>{anneeCourante + d}</option>
-                    ))}
-                  </select>
-                </label>
+              <div className="mt-3 flex flex-col gap-2.5 sm:flex-row">
+                <button type="button" onClick={() => setMode(1)} className={bouton(mode === 1)}>
+                  {puce(mode === 1)}
+                  <span>
+                    En une seule fois
+                    <span className="block text-sm font-normal text-slate-500">Une période continue, un mois complet ou plus</span>
+                  </span>
+                </button>
+                <button type="button" onClick={() => setMode(2)} className={bouton(mode === 2)}>
+                  {puce(mode === 2)}
+                  <span>
+                    Sur 2 périodes différentes
+                    <span className="block text-sm font-normal text-slate-500">Chaque période a son mois, son départ et sa durée</span>
+                  </span>
+                </button>
               </div>
             </li>
 
             <li>
               <h2 className="flex items-center gap-2.5 text-base font-bold text-slate-900">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600 text-xs text-white">2</span>
-                Comment organiser votre congé ?
+                {mode === 1 ? "Quand et combien de jours ?" : "1ʳᵉ période"}
               </h2>
-              <div className="mt-3 flex flex-col gap-2.5 sm:flex-row">
-                <button type="button" onClick={() => setNbParties(1)} className={bouton(nbParties === 1)}>
-                  {puce(nbParties === 1)} En une seule fois
-                </button>
-                <button type="button" onClick={() => setNbParties(2)} className={bouton(nbParties === 2)}>
-                  {puce(nbParties === 2)} En 2 parties (1–15 et 16–fin)
-                </button>
-              </div>
-
-              {nbParties === 1 && (
-                <div className="mt-4">
-                  <span className="libelle">Date de départ</span>
-                  <div className="mt-1.5 flex flex-col gap-2.5 sm:flex-row">
-                    <button type="button" onClick={() => setPartieChoisie("debut")} className={bouton(partieChoisie === "debut")}>
-                      {puce(partieChoisie === "debut")} Le 1er du mois
-                    </button>
-                    <button type="button" onClick={() => setPartieChoisie("fin")} className={bouton(partieChoisie === "fin")}>
-                      {puce(partieChoisie === "fin")} Le 16 du mois
-                    </button>
-                  </div>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Le congé se poursuit sans interruption et peut déborder sur le mois suivant.
-                  </p>
-                </div>
+              <div className="mt-3">{champsPeriode(choix1, setChoix1, mode === 1 ? 11 : 1)}</div>
+              {mode === 1 && (
+                <p className="mt-2 text-sm text-slate-500">
+                  Minimum 11 jours. Le congé se poursuit sans interruption et peut déborder sur le mois suivant.
+                </p>
               )}
             </li>
 
-            <li>
-              <h2 className="flex items-center gap-2.5 text-base font-bold text-slate-900">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600 text-xs text-white">3</span>
-                Combien de jours ?
-              </h2>
-              <label className="mt-3 block max-w-xs">
-                <span className="libelle">Nombre de jours</span>
-                <input
-                  type="number"
-                  min={11}
-                  max={90}
-                  value={nbJours}
-                  onChange={(e) => setNbJours(Number(e.target.value))}
-                  className="champ text-lg font-semibold"
-                />
-                <span className="mt-1.5 block text-sm text-slate-500">Minimum 11, hors dimanches et jours fériés</span>
-              </label>
-            </li>
+            {mode === 2 && (
+              <li>
+                <h2 className="flex items-center gap-2.5 text-base font-bold text-slate-900">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600 text-xs text-white">3</span>
+                  2ᵉ période
+                </h2>
+                <div className="mt-3">{champsPeriode(choix2, setChoix2, 1)}</div>
+                <p className={`mt-2 text-sm ${total >= 11 ? "text-slate-500" : "font-semibold text-amber-700"}`}>
+                  Total des deux périodes : {total} jours (minimum 11). Les deux périodes forment un seul vœu.
+                </p>
+              </li>
+            )}
           </ol>
+
+          {groupesFetes.length > 0 && (
+            <Alerte type="info" className="mt-5">
+              <p className="font-semibold">Grandes fêtes : une seule par groupe et par année</p>
+              <p className="mt-1">
+                Vous ne pouvez pas être en congé à la fois pour la Korité et la Tabaski, ni à la fois pour le Grand Magal de
+                Touba et le Gamou. Dates prévues (estimations, à confirmer par le calendrier officiel) :
+              </p>
+              <ul className="mt-1 list-disc pl-5">
+                {groupesFetes.map((g) => (
+                  <li key={g.titre}>
+                    <strong>{g.titre}</strong> : {g.fetes.map((f) => `${f.nom} ${formatFr(f.date)}`).join(" · ")}
+                  </li>
+                ))}
+              </ul>
+            </Alerte>
+          )}
 
           {erreur && <Alerte type="erreur" className="mt-5">{erreur}</Alerte>}
 
@@ -186,17 +247,33 @@ function DemandeForm() {
                 <CheckCircle2 className="h-5 w-5" aria-hidden />
                 Votre vœu respecte toutes les règles
               </p>
-              {apercu.periodes.map((p) => (
-                <p key={p.debut} className="mt-2.5 flex flex-wrap items-center gap-2 text-lg font-bold text-slate-900">
-                  {formatFr(p.debut)}
-                  <ArrowRight className="h-5 w-5 text-emerald-600" aria-hidden />
-                  retour {formatFr(dateRetour(p.fin))}
-                  <span className="text-base font-medium text-slate-500">· {p.jours} jours</span>
-                </p>
+              {apercu.periodes.map((p, i) => (
+                <div key={p.debut} className="mt-3 rounded-xl bg-white/70 p-3">
+                  {apercu.periodes.length > 1 && (
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Période {i + 1}</p>
+                  )}
+                  <p className="flex flex-wrap items-center gap-2 text-lg font-bold text-slate-900">
+                    {formatFr(p.debut)}
+                    <ArrowRight className="h-5 w-5 text-emerald-600" aria-hidden />
+                    retour {formatFr(dateRetour(p.fin))}
+                  </p>
+                  <p className="mt-1 text-[15px] text-slate-700">
+                    {p.calendaires} jours d&apos;absence − {p.dimanches} dimanche{p.dimanches > 1 ? "s" : ""}
+                    {p.feries.length > 0 && ` − ${p.feries.length} férié${p.feries.length > 1 ? "s" : ""}`} ={" "}
+                    <strong>{p.jours} jours déduits</strong>
+                  </p>
+                  {p.feries.length > 0 && (
+                    <p className="mt-0.5 text-sm text-slate-500">
+                      Non décomptés : {p.feries.map((f) => `${f.nom} (${formatFr(f.date)})`).join(", ")}
+                    </p>
+                  )}
+                  <p className="mt-1 text-[15px] text-slate-700">
+                    Solde au départ : <strong>{p.soldeAvant} jours</strong> → après ce congé : <strong>{p.soldeApres} jours</strong>
+                  </p>
+                </div>
               ))}
-              <p className="mt-2 text-[15px] text-slate-700">
-                {apercu.nbJours} jours décomptés. Solde au départ : <strong>{apercu.soldeAuDepart} jours</strong>.
-                Les règles seront revérifiées à l&apos;envoi.
+              <p className="mt-3 text-[15px] text-slate-700">
+                {apercu.nbJours} jours seront déduits de votre solde. Les règles seront revérifiées à l&apos;envoi.
               </p>
               <Bouton taille="lg" onClick={() => envoyer(true)} disabled={chargement} className="mt-4 w-full">
                 {chargement ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <Send className="h-5 w-5" aria-hidden />}

@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { compterJoursDecomptes, etendrePeriode } from "./calendrier";
+import { estDecompte, etendrePeriode, fetesExclusives } from "./calendrier";
 import { lireDocument, modifierDocument } from "./storage";
 
 // -------------------- CONFIGURATION --------------------
@@ -30,7 +30,7 @@ export interface Periode {
 
 export type StatutDemande = "en_attente" | "valide" | "supprime";
 
-/** Vœu de congé déposé dans l'application (1 ou 2 périodes). */
+/** Vœu de congé déposé dans l'application : 1 période continue ou 2 périodes distinctes. */
 export interface Demande {
   id: string;
   periodes: Periode[];
@@ -158,7 +158,7 @@ export function dateAnniversaire(agent: Agent): string {
 }
 
 // -------------------- CONGES DE L'AGENT --------------------
-/** Un « congé » = une période reprise ou une demande active (ses 2 parties comptent pour un). */
+/** Un « congé » = une période reprise ou une demande active (ses 2 périodes comptent pour un, pour le délai de 12 mois). */
 interface Conge {
   debut: string;
   fin: string;
@@ -293,88 +293,159 @@ export function occupationParQuinzaine(
 // -------------------- CONSTRUCTION D'UNE DEMANDE --------------------
 export type ConstructionResult = { status: "ok"; periodes: Periode[] } | { status: "erreur"; message: string };
 
+/** Une période choisie par l'agent : départ le 1er ou le 16 d'un mois, durée en jours décomptés. */
+export interface ChoixPeriode {
+  annee: number;
+  mois: number;
+  partie: "debut" | "fin"; // départ le 1er ou le 16
+  nbJours: number;
+}
+
 function periode(depart: Date, nbJours: number): Periode {
   const { debut, fin } = etendrePeriode(depart, nbJours);
   return { debut: dateToStr(debut), fin: dateToStr(fin), jours: nbJours };
 }
 
 /**
- * 1 partie : départ le 1er ou le 16, durée libre (peut déborder sur le mois suivant).
- * 2 parties : ceil(n/2) jours à partir du 1er (dans la 1ʳᵉ quinzaine) et
- * floor(n/2) jours à partir du 16 (dans la 2ᵉ quinzaine).
- * Les dimanches et jours fériés ne sont pas décomptés.
+ * Un vœu = 1 période continue (qui peut couvrir un mois entier ou déborder
+ * sur le suivant) ou 2 périodes distinctes, chacune avec son propre mois,
+ * sa date de départ et son nombre de jours. Les dimanches et jours fériés ne
+ * sont pas décomptés : la période s'allonge d'autant. Le minimum de
+ * CONFIG.MIN_DAYS jours s'applique au total du vœu.
  */
-export function construirePeriodes(
-  annee: number,
-  mois: number,
-  nbParties: 1 | 2,
-  nbJours: number,
-  partieChoisie?: "debut" | "fin"
-): ConstructionResult {
-  if (nbJours < CONFIG.MIN_DAYS) {
-    return { status: "erreur", message: `❌ Le minimum est de ${CONFIG.MIN_DAYS} jours.` };
+export function construirePeriodes(choix: ChoixPeriode[]): ConstructionResult {
+  if (choix.length < 1 || choix.length > 2) {
+    return { status: "erreur", message: "❌ Un vœu comporte 1 ou 2 périodes." };
   }
-  if (nbJours > CONFIG.MAX_DAYS) {
-    return { status: "erreur", message: `❌ Une demande ne peut pas dépasser ${CONFIG.MAX_DAYS} jours.` };
+  if (choix.some((c) => !Number.isInteger(c.nbJours) || c.nbJours < 1)) {
+    return { status: "erreur", message: "❌ Indiquez un nombre de jours pour chaque période." };
   }
-
-  if (nbParties === 1) {
-    if (partieChoisie !== "debut" && partieChoisie !== "fin") {
-      return { status: "erreur", message: "Choisissez la partie du mois (début ou mi-mois)." };
-    }
-    return { status: "ok", periodes: [periode(dateUTC(annee, mois, partieChoisie === "debut" ? 1 : 16), nbJours)] };
-  }
-
-  const q1 = quinzaine(annee, mois, 1);
-  const q2 = quinzaine(annee, mois, 2);
-  const n1 = Math.ceil(nbJours / 2);
-  const n2 = Math.floor(nbJours / 2);
-  const max1 = compterJoursDecomptes(q1.debut, q1.fin);
-  const max2 = compterJoursDecomptes(q2.debut, q2.fin);
-  if (n1 > max1) {
+  const total = choix.reduce((s, c) => s + c.nbJours, 0);
+  if (total < CONFIG.MIN_DAYS) {
     return {
       status: "erreur",
-      message: `❌ La 1ʳᵉ partie (1–15) ne compte que ${max1} jours décomptés ; vous en demandez ${n1}. Réduisez le total ou choisissez 1 partie.`
+      message:
+        choix.length === 1
+          ? `❌ Le minimum est de ${CONFIG.MIN_DAYS} jours.`
+          : `❌ Le minimum est de ${CONFIG.MIN_DAYS} jours au total (vous en demandez ${total}).`
     };
   }
-  if (n2 > max2) {
+  if (total > CONFIG.MAX_DAYS) {
+    return { status: "erreur", message: `❌ Un vœu ne peut pas dépasser ${CONFIG.MAX_DAYS} jours.` };
+  }
+
+  const periodes = choix
+    .map((c) => periode(dateUTC(c.annee, c.mois, c.partie === "debut" ? 1 : 16), c.nbJours))
+    .sort((a, b) => (a.debut < b.debut ? -1 : 1));
+
+  if (periodes.length === 2 && periodes[1].debut <= periodes[0].fin) {
     return {
       status: "erreur",
-      message: `❌ La 2ᵉ partie (16–fin) ne compte que ${max2} jours décomptés ; vous en demandez ${n2}. Réduisez le total ou choisissez 1 partie.`
+      message: `❌ Les deux périodes se chevauchent : la première se termine le ${formatFr(periodes[0].fin)} (retour le ${formatFr(dateToStr(ajouterJours(strToDate(periodes[0].fin), 1)))}). Choisissez une date de départ plus tardive pour l'autre période, ou prenez votre congé en une seule fois.`
     };
   }
-  return {
-    status: "ok",
-    periodes: [periode(dateUTC(annee, mois, 1), n1), periode(dateUTC(annee, mois, 16), n2)]
-  };
+  return { status: "ok", periodes };
 }
 
 // -------------------- VERIFICATIONS --------------------
 type Verif = { ok: true } | { ok: false; message: string };
 
+export interface SoldePeriode {
+  debut: string;
+  jours: number;
+  acquis: number; // jours acquis à la date de départ
+  avant: number; // solde disponible au départ
+  apres: number; // solde après déduction des jours posés
+  nouvelle: boolean;
+}
+
 /**
- * Le solde doit suffire au départ de CHAQUE congé, en comptant les jours
- * acquis jusqu'à ce départ (+2 par mois) : un agent à 6 jours aujourd'hui
- * peut demander un congé de 11 jours dans 3 mois. Les demandes déjà
- * déposées sont prises en compte dans l'ordre chronologique.
+ * Solde projeté au départ de CHAQUE période (anciens vœux et nouvelles
+ * périodes), dans l'ordre chronologique : jours acquis à cette date (+2 par
+ * mois) − jours déjà pris ou posés avant. Les jours posés sont des jours
+ * décomptés (hors dimanches et fériés).
  */
-export function verifierSoldeProjete(agent: Agent, nouvelle: { debut: string; jours: number }): Verif {
-  const demandes = [
-    ...demandesActives(agent).map((d) => ({ debut: d.periodes[0].debut, jours: d.jours, nouvelle: false })),
-    { ...nouvelle, nouvelle: true }
+export function projeterSolde(agent: Agent, nouvelles: Periode[]): SoldePeriode[] {
+  const items = [
+    ...demandesActives(agent).flatMap((d) => d.periodes.map((p) => ({ debut: p.debut, jours: p.jours, nouvelle: false }))),
+    ...nouvelles.map((p) => ({ debut: p.debut, jours: p.jours, nouvelle: true }))
   ].sort((a, b) => (a.debut < b.debut ? -1 : 1));
 
   let cumul = agent.jours_pris_reprise;
-  for (const d of demandes) {
-    const acquis = joursAcquis(agent.date_embauche, strToDate(d.debut));
-    const disponible = acquis - cumul;
-    cumul += d.jours;
-    if (disponible < d.jours) {
+  return items.map((it) => {
+    const acquis = joursAcquis(agent.date_embauche, strToDate(it.debut));
+    const avant = acquis - cumul;
+    cumul += it.jours;
+    return { ...it, acquis, avant, apres: avant - it.jours };
+  });
+}
+
+/**
+ * Le solde doit suffire au départ de chaque période : un agent à 6 jours
+ * aujourd'hui peut demander un congé de 11 jours dans 3 mois.
+ */
+export function verifierSoldeProjete(agent: Agent, nouvelles: Periode[]): Verif {
+  for (const s of projeterSolde(agent, nouvelles)) {
+    if (s.avant < s.jours) {
       return {
         ok: false,
-        message: d.nouvelle
-          ? `❌ Solde insuffisant : au ${formatFr(d.debut)} vous aurez ${disponible} jours (${acquis} acquis − ${acquis - disponible} pris), vous en demandez ${d.jours}. Chaque mois ajoute ${CONFIG.JOURS_ACQUIS_PAR_MOIS} jours : choisissez un mois plus tardif ou moins de jours.`
-          : `❌ Cette demande rendrait insuffisant le solde de votre congé du ${formatFr(d.debut)}.`
+        message: s.nouvelle
+          ? `❌ Solde insuffisant : au ${formatFr(s.debut)} vous aurez ${s.avant} jours (${s.acquis} acquis − ${s.acquis - s.avant} pris), vous en demandez ${s.jours}. Chaque mois ajoute ${CONFIG.JOURS_ACQUIS_PAR_MOIS} jours : choisissez un mois plus tardif ou moins de jours.`
+          : `❌ Ce vœu rendrait insuffisant le solde de votre congé du ${formatFr(s.debut)}.`
+      };
+    }
+  }
+  return { ok: true };
+}
+
+/** Période élargie aux jours non décomptés (dimanches, fériés) qui la précèdent ou la suivent. */
+function absenceEtendue(p: Periode): { debut: string; fin: string } {
+  let debut = strToDate(p.debut);
+  let fin = strToDate(p.fin);
+  while (!estDecompte(ajouterJours(debut, -1))) debut = ajouterJours(debut, -1);
+  while (!estDecompte(ajouterJours(fin, 1))) fin = ajouterJours(fin, 1);
+  return { debut: dateToStr(debut), fin: dateToStr(fin) };
+}
+
+/**
+ * Fêtes exclusives (Korité/Tabaski, Magal/Gamou) : sur une même année, un
+ * agent peut être en congé pour l'une des deux fêtes d'un groupe, pas pour
+ * les deux (congés repris, vœux actifs et nouveau vœu confondus). Une fête
+ * est « couverte » si elle tombe pendant l'absence, y compris sur les
+ * dimanches et fériés collés au départ ou au retour (ex. : Tabaski un
+ * dimanche 16, départ le lundi 17).
+ */
+export function verifierFetesMajeures(agent: Agent, nouvelles: Periode[]): Verif {
+  const existantes = congesDeLAgent(agent).flatMap((c) => c.periodes);
+  const couvrante = (ps: Periode[], date: string) =>
+    ps.find((p) => {
+      const e = absenceEtendue(p);
+      return e.debut <= date && date <= e.fin;
+    });
+  const decrire = (p: Periode, nouvelle: boolean) =>
+    `${nouvelle ? "la période demandée" : "votre congé déjà enregistré"} du ${formatFr(p.debut)} au ${formatFr(p.fin)}`;
+
+  const annees = new Set(nouvelles.flatMap((p) => [Number(p.debut.slice(0, 4)), Number(p.fin.slice(0, 4))]));
+  for (const annee of [...annees].sort()) {
+    for (const groupe of fetesExclusives(annee)) {
+      const touchees = groupe.fetes.flatMap((f) => {
+        const n = couvrante(nouvelles, f.date);
+        const e = n ? undefined : couvrante(existantes, f.date);
+        return n || e ? [{ fete: f, periode: (n ?? e)!, nouvelle: !!n }] : [];
+      });
+      if (touchees.length < 2 || !touchees.some((t) => t.nouvelle)) continue;
+
+      const [t1, t2] = touchees;
+      const detail =
+        t1.periode === t2.periode
+          ? `${decrire(t1.periode, t1.nouvelle)[0].toUpperCase()}${decrire(t1.periode, t1.nouvelle).slice(1)} couvre les deux fêtes.`
+          : `${decrire(t1.periode, t1.nouvelle)[0].toUpperCase()}${decrire(t1.periode, t1.nouvelle).slice(1)} couvre ${t1.fete.libelle}, et ${decrire(t2.periode, t2.nouvelle)} couvre ${t2.fete.libelle}.`;
+      return {
+        ok: false,
+        message:
+          `⛔ Vœu refusé : vous ne pouvez pas être en congé à la fois pour ${t1.fete.libelle} (${formatFr(t1.fete.date)}) ` +
+          `et pour ${t2.fete.libelle} (${formatFr(t2.fete.date)}). Le service n'autorise qu'une seule de ces deux fêtes par année (règle « ${groupe.titre} »). ` +
+          `${detail} Modifiez vos dates pour ne garder qu'une seule de ces fêtes.`
       };
     }
   }
@@ -406,7 +477,6 @@ export function verifierDemande(registre: Registre, agent: Agent, periodes: Peri
   if (periodes.length === 0) return { ok: false, message: "Aucune date sélectionnée." };
   const debut = periodes[0].debut;
   const fin = periodes[periodes.length - 1].fin;
-  const jours = periodes.reduce((s, p) => s + p.jours, 0);
 
   if (debut <= dateToStr(aujourdHui)) {
     return { ok: false, message: "⛔ La date de départ doit être postérieure à aujourd'hui." };
@@ -439,7 +509,10 @@ export function verifierDemande(registre: Registre, agent: Agent, periodes: Peri
     }
   }
 
-  const soldeOk = verifierSoldeProjete(agent, { debut, jours });
+  const fetesOk = verifierFetesMajeures(agent, periodes);
+  if (!fetesOk.ok) return fetesOk;
+
+  const soldeOk = verifierSoldeProjete(agent, periodes);
   if (!soldeOk.ok) return soldeOk;
 
   return verifierPlafond(registre, agent, periodes);

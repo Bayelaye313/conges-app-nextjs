@@ -9,8 +9,10 @@ d'administration (matricule 0568) pour suivre, valider, supprimer et exporter le
 |---|---|
 | Acquisition | 2 jours par mois, mois d'embauche compris (règle du tableau RH, vérifiée sur les 206 agents). Le solde gagne +2 jours le 1er de chaque mois. |
 | Solde au départ | Le solde est recalculé **à la date de départ** du vœu : un agent à 6 jours aujourd'hui peut demander 11 jours dans 3 mois. Les vœux déjà déposés sont déduits, dans l'ordre chronologique. |
-| Décompte | Les dimanches et jours fériés ne sont pas décomptés (`lib/calendrier.ts`). |
-| Minimum | 11 jours décomptés par vœu, départ le 1er ou le 16 du mois, en 1 partie (continue) ou 2 parties (1–15 et 16–fin). |
+| Décompte | Les dimanches et jours fériés sénégalais ne sont pas décomptés (`lib/calendrier.ts`). |
+| Minimum | 11 jours décomptés par vœu, départ le 1er ou le 16 du mois, en 1 période continue (qui peut couvrir un mois complet ou plus) ou en 2 périodes distinctes, chacune avec son mois, son départ et sa durée (minimum 11 jours au total). Les 2 périodes forment un seul vœu pour le délai de 12 mois ; le solde est vérifié au départ de chacune. |
+| Déduction | Seuls les jours posés hors dimanches et jours fériés sont déduits du solde ; l'aperçu détaille jours d'absence, dimanches, fériés et solde avant/après. |
+| Grandes fêtes | Sur une même année, un agent ne peut pas être en congé pour la Korité **et** la Tabaski, ni pour le Grand Magal de Touba **et** le Gamou (Maouloud) (congés repris, vœux actifs et nouveau vœu confondus). Les dimanches et fériés collés à une période comptent comme absence. |
 | Ancienneté | Premier congé possible à partir de la date anniversaire d'entrée (12 mois). |
 | Délai | 12 mois entre la date de retour d'un congé et le départ du suivant. |
 | Plafonds | Par quinzaine (1–15, 16–fin), on compte les agents absents au moins un jour : 20 AV, 3 CEV, CS sans plafond. Les vœux en attente occupent déjà une place ; une suppression la libère. |
