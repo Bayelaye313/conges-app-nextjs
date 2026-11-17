@@ -149,8 +149,7 @@ function DemandeForm() {
   const total = choix1.nbJours + (mode === 2 ? choix2.nbJours : 0);
 
   return (
-    <>
-      <BarreNavigation />
+    <BarreNavigation>
       <main className="page-container max-w-6xl">
         <Link href="/dashboard" className={classesBouton("fantome", "sm", "-ml-3 mb-3")}>
           <ArrowLeft className="h-4 w-4" aria-hidden />
@@ -302,7 +301,7 @@ function DemandeForm() {
           <ArrowRight className="h-5 w-5" aria-hidden />
         </Link>
       </main>
-    </>
+    </BarreNavigation>
   );
 }
 

@@ -27,8 +27,7 @@ export default function LegalPage() {
   const estimation = estimerJoursLegauxAnnuels(anciennete, enfants);
 
   return (
-    <>
-      <BarreNavigation />
+    <BarreNavigation>
       <main className="page-container max-w-screen-2xl">
         <EnTete
           surtitre="Cadre légal"
@@ -82,6 +81,6 @@ export default function LegalPage() {
           Sources : {REPERES_LEGAUX_SENEGAL.texteReference} ; {REPERES_LEGAUX_SENEGAL.texteComplementaire}.
         </p>
       </main>
-    </>
+    </BarreNavigation>
   );
 }

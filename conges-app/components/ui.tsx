@@ -201,7 +201,7 @@ const NAV_AGENT = [
   { href: "/legal", libelle: "Cadre légal", icone: Scale }
 ];
 
-export function BarreNavigation({ admin = false }: { admin?: boolean }) {
+export function BarreNavigation({ admin = false, children }: { admin?: boolean; children: React.ReactNode }) {
   const router = useRouter();
   const chemin = usePathname();
   const [menuOuvert, setMenuOuvert] = useState(false);
@@ -278,7 +278,7 @@ export function BarreNavigation({ admin = false }: { admin?: boolean }) {
   );
 
   return (
-    <div className="min-h-screen lg:pl-64">
+    <div className="min-h-screen">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-white/5 bg-[#052e1c] bg-[radial-gradient(30rem_20rem_at_0%_0%,rgb(0_136_75/0.25),transparent_60%),linear-gradient(to_bottom,#052e1c,#0a3f27)] lg:block print:hidden">
         {contenuMenu}
       </aside>
@@ -319,6 +319,7 @@ export function BarreNavigation({ admin = false }: { admin?: boolean }) {
           </aside>
         </div>
       )}
+      <div className="min-h-[calc(100vh-3.5rem)] lg:ml-64 lg:min-h-screen">{children}</div>
     </div>
   );
 }

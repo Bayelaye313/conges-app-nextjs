@@ -116,10 +116,9 @@ export default function DashboardPage() {
 
   if (!donnees) {
     return (
-      <>
-        <BarreNavigation />
+      <BarreNavigation>
         <Chargement texte="Ouverture de votre dossier…" />
-      </>
+      </BarreNavigation>
     );
   }
 
@@ -135,8 +134,7 @@ export default function DashboardPage() {
   const maxProjection = Math.max(minJours, ...agent.projection.map((p) => p.solde), 1);
 
   return (
-    <>
-      <BarreNavigation />
+    <BarreNavigation>
       <main className="page-container max-w-screen-2xl">
         <EnTete
           surtitre={`Matricule ${agent.matricule} · ${agent.fonction}`}
@@ -307,6 +305,6 @@ export default function DashboardPage() {
           )}
         </Carte>
       </main>
-    </>
+    </BarreNavigation>
   );
 }

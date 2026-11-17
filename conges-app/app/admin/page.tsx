@@ -212,10 +212,9 @@ export default function AdminPage() {
   if (erreur) return <EcranErreur message={erreur} />;
   if (!s) {
     return (
-      <>
-        <BarreNavigation admin />
+      <BarreNavigation admin>
         <Chargement texte="Chargement du tableau de bord…" />
-      </>
+      </BarreNavigation>
     );
   }
 
@@ -251,8 +250,7 @@ export default function AdminPage() {
   );
 
   return (
-    <>
-      <BarreNavigation admin />
+    <BarreNavigation admin>
       <main className="page-container max-w-screen-2xl">
         <EnTete
           surtitre="Campagne des vœux"
@@ -511,6 +509,6 @@ export default function AdminPage() {
           </div>
         </Carte>
       </main>
-    </>
+    </BarreNavigation>
   );
 }

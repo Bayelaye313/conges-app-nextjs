@@ -44,8 +44,7 @@ export default function PlanningPage() {
   }, [router]);
 
   return (
-    <>
-      <BarreNavigation />
+    <BarreNavigation>
       <main className="page-container max-w-screen-2xl">
         <EnTete
           surtitre="Planning collectif"
@@ -109,6 +108,6 @@ export default function PlanningPage() {
           </>
         )}
       </main>
-    </>
+    </BarreNavigation>
   );
 }
