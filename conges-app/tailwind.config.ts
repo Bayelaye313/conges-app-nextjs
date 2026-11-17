@@ -1,7 +1,6 @@
 import type { Config } from "tailwindcss";
 
-// Système visuel inspiré de shadcn/ui et des gabarits Tailwind UI :
-// fond clair, cartes blanches, primaire indigo, statuts sémantiques.
+// Charte verte de Dakar Mobilité, avec les statuts sémantiques existants.
 const config: Config = {
   content: [
     "./app/**/*.{ts,tsx}",
@@ -12,13 +11,17 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          50: "#EEF2FF",
-          100: "#E0E7FF",
-          200: "#C7D2FE",
-          500: "#6366F1",
-          600: "#4F46E5",
-          700: "#4338CA",
-          900: "#312E81"
+          50: "#EBF8F1",
+          100: "#CDEEDD",
+          200: "#9FDCBF",
+          300: "#63C39A",
+          400: "#2AA673",
+          500: "#00975A",
+          600: "#00884B",
+          700: "#006E3D",
+          800: "#055833",
+          900: "#07482B",
+          950: "#03281A"
         }
       },
       fontFamily: {
@@ -26,8 +29,8 @@ const config: Config = {
         mono: ["var(--font-mono)", "ui-monospace", "monospace"]
       },
       boxShadow: {
-        card: "0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06)",
-        elevated: "0 10px 30px -10px rgb(79 70 229 / 0.25)"
+        card: "0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.03)",
+        elevated: "0 6px 16px -6px rgb(0 136 75 / 0.55)"
       }
     }
   },

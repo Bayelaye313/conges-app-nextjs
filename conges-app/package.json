@@ -11,7 +11,7 @@
     "test": "vitest run",
     "importer:agents": "tsx scripts/importer-agents.ts",
     "importer:conges": "tsx scripts/importer-conges.ts",
-    "codes:generer": "tsx scripts/generer-codes.ts",
+    "codes:generer": "node --env-file-if-exists=.env.local --import tsx scripts/generer-codes.ts",
     "registre:publier": "node --env-file-if-exists=.env.local --import tsx scripts/registre-netlify.ts publier",
     "registre:recuperer": "node --env-file-if-exists=.env.local --import tsx scripts/registre-netlify.ts recuperer"
   },

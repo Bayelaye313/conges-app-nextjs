@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   AlertCircle,
   CalendarDays,
@@ -10,10 +11,12 @@ import {
   KeyRound,
   Loader2,
   LogOut,
+  Menu,
   Palmtree,
   Scale,
   TriangleAlert,
   UserRound,
+  X,
   type LucideIcon
 } from "lucide-react";
 import { STATUTS_VOEU } from "@/lib/client";
@@ -61,7 +64,7 @@ export function Bouton({
 }
 
 export function Carte({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div {...props} className={cx("rounded-2xl border border-slate-200/90 bg-white shadow-card", className)} />;
+  return <div {...props} className={cx("rounded-xl border border-slate-100 bg-white shadow-card", className)} />;
 }
 
 export function BadgeStatut({ statut }: { statut: string }) {
@@ -181,13 +184,13 @@ export function EcranErreur({ message }: { message: string }) {
   );
 }
 
-export function Logo() {
+export function Logo({ inverse = false }: { inverse?: boolean }) {
   return (
     <span className="flex items-center gap-2.5">
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-elevated">
+      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-800 text-white shadow-elevated">
         <Palmtree className="h-5 w-5" aria-hidden />
       </span>
-      <span className="text-base font-bold tracking-tight text-slate-900">Mes Congés</span>
+      <span className={cx("text-base font-bold tracking-tight", inverse ? "text-white" : "text-slate-900")}>Mes Congés</span>
     </span>
   );
 }
@@ -201,66 +204,121 @@ const NAV_AGENT = [
 export function BarreNavigation({ admin = false }: { admin?: boolean }) {
   const router = useRouter();
   const chemin = usePathname();
+  const [menuOuvert, setMenuOuvert] = useState(false);
+
+  useEffect(() => setMenuOuvert(false), [chemin]);
 
   async function deconnecter() {
     await fetch("/api/auth/deconnexion", { method: "POST" }).catch(() => undefined);
     router.replace("/");
   }
 
-  return (
-    <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 shadow-sm shadow-slate-900/[0.02] backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-7xl items-center gap-5 px-4 sm:px-6">
-        <Link href={admin ? "/admin" : "/dashboard"}><Logo /></Link>
-        {!admin && (
-          <nav className="hidden items-center gap-1 md:flex">
-            {NAV_AGENT.map(({ href, libelle, icone: Icone }) => (
-              <Link
-                key={href}
-                href={href}
-                className={cx(
-                  "flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold transition",
-                  chemin === href ? "bg-brand-50 text-brand-700" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                )}
-              >
-                <Icone className="h-4 w-4" aria-hidden />
-                {libelle}
-              </Link>
-            ))}
-          </nav>
-        )}
-        {admin && (
-          <span className="hidden rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 sm:inline">
-            Administration
-          </span>
-        )}
-        <div className="ml-auto flex items-center gap-1">
-          <Link href="/compte" className={classesBouton("fantome", "sm")} title="Changer mon code">
-            <KeyRound className="h-4 w-4" aria-hidden />
-            <span className="hidden sm:inline">Mon code</span>
-          </Link>
-          <button onClick={deconnecter} className={classesBouton("fantome", "sm")} title="Se déconnecter">
-            <LogOut className="h-4 w-4" aria-hidden />
-            <span className="hidden sm:inline">Déconnexion</span>
-          </button>
-        </div>
-      </div>
-      {!admin && (
-        <nav className="flex gap-1 overflow-x-auto border-t border-slate-100 px-4 py-1.5 md:hidden">
-          {NAV_AGENT.map(({ href, libelle, icone: Icone }) => (
+  const liens = admin
+    ? [{ href: "/admin", libelle: "Tableau de bord", icone: CalendarDays }]
+    : NAV_AGENT;
+
+  const contenuMenu = (
+    <div className="flex h-full flex-col gap-6 p-4">
+      <Link href={admin ? "/admin" : "/dashboard"} className="flex flex-col gap-2.5 px-2 pt-2">
+        <Logo inverse />
+        <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/55">
+          <span aria-hidden className="h-1 w-4 rounded-full bg-amber-400" />
+          {admin ? "Administration" : "Espace agents de terrain"}
+        </span>
+      </Link>
+
+      <nav aria-label="Navigation principale" className="flex flex-col gap-1">
+        <span className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
+          Navigation
+        </span>
+        {liens.map(({ href, libelle, icone: Icone }) => {
+          const actif = chemin === href || (href !== "/dashboard" && chemin.startsWith(`${href}/`));
+          return (
             <Link
               key={href}
               href={href}
+              aria-current={actif ? "page" : undefined}
               className={cx(
-                "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold",
-                chemin === href ? "bg-brand-50 text-brand-700" : "text-slate-600"
+                "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition",
+                actif
+                  ? "bg-brand-600/15 text-white shadow-[inset_0_0_0_1px_rgb(52_196_124/0.25)]"
+                  : "text-white/60 hover:bg-white/5 hover:text-white"
               )}
             >
-              <Icone className="h-4 w-4" aria-hidden />
+              {actif && (
+                <span aria-hidden className="absolute bottom-2 left-0 top-2 w-1 rounded-r-full bg-emerald-400 shadow-[0_0_12px_rgb(52_196_124/0.7)]" />
+              )}
+              <Icone className={cx("h-5 w-5", actif ? "text-emerald-400" : "text-white/50 group-hover:text-white/80")} aria-hidden />
               {libelle}
             </Link>
-          ))}
-        </nav>
+          );
+        })}
+      </nav>
+
+      <div className="mt-auto rounded-xl border border-white/10 bg-white/5 p-3">
+        <div className="flex items-center gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white ring-2 ring-white/10">
+            <UserRound className="h-4 w-4" aria-hidden />
+          </span>
+          <span className="min-w-0 leading-tight">
+            <span className="block truncate text-sm font-semibold text-white">{admin ? "Administration" : "Espace agent"}</span>
+            <span className="block text-xs text-white/50">Gestion des congés</span>
+          </span>
+        </div>
+        <Link href="/compte" className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-white/70 transition hover:bg-white/10 hover:text-white">
+          <KeyRound className="h-4 w-4" aria-hidden />
+          Changer mon code
+        </Link>
+        <button onClick={deconnecter} className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-white/70 transition hover:bg-white/10 hover:text-white">
+          <LogOut className="h-4 w-4" aria-hidden />
+          Déconnexion
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen lg:pl-64">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-white/5 bg-[#052e1c] bg-[radial-gradient(30rem_20rem_at_0%_0%,rgb(0_136_75/0.25),transparent_60%),linear-gradient(to_bottom,#052e1c,#0a3f27)] lg:block print:hidden">
+        {contenuMenu}
+      </aside>
+
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-white/10 bg-[#052e1c] px-4 text-white lg:hidden print:hidden">
+        <button
+          onClick={() => setMenuOuvert(true)}
+          aria-label="Ouvrir le menu"
+          aria-expanded={menuOuvert}
+          className="grid h-9 w-9 place-items-center rounded-lg text-white/80 transition hover:bg-white/10"
+        >
+          <Menu className="h-5 w-5" aria-hidden />
+        </button>
+        <Link href={admin ? "/admin" : "/dashboard"} className="flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white">
+            <Palmtree className="h-4 w-4" aria-hidden />
+          </span>
+          <span className="text-sm font-bold text-white">Mes Congés</span>
+        </Link>
+      </header>
+
+      {menuOuvert && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu de navigation">
+          <button
+            aria-label="Fermer le menu"
+            onClick={() => setMenuOuvert(false)}
+            className="absolute inset-0 cursor-default bg-[#052e1c]/60 backdrop-blur-sm"
+          />
+          <aside className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-[#052e1c] bg-[linear-gradient(to_bottom,#052e1c,#0a3f27)]">
+            <button
+              onClick={() => setMenuOuvert(false)}
+              aria-label="Fermer le menu"
+              className="absolute right-3 top-4 z-10 grid h-9 w-9 place-items-center rounded-xl text-white/60 transition hover:bg-white/10"
+            >
+              <X className="h-5 w-5" aria-hidden />
+            </button>
+            {contenuMenu}
+          </aside>
+        </div>
       )}
-    </header>
+    </div>
   );
 }

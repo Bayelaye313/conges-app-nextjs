@@ -42,6 +42,7 @@ npm run codes:generer -- --admin 0568 --nom "Prénom Nom"                      #
 npm run codes:generer                                                         # codes de tous les agents
 ```
 
+La génération charge aussi `conges-app/.env.local` si le fichier existe, afin d’utiliser le stockage configuré (`fichier` ou `postgres`).
 Les codes provisoires sont écrits dans `data/import/codes-provisoires-*.csv` : les distribuer,
 puis **supprimer le fichier**. Chaque titulaire choisit son code à la première connexion.
 
