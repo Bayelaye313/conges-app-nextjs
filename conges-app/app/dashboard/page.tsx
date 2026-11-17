@@ -137,7 +137,7 @@ export default function DashboardPage() {
   return (
     <>
       <BarreNavigation />
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
+      <main className="page-container max-w-screen-2xl">
         <EnTete
           surtitre={`Matricule ${agent.matricule} · ${agent.fonction}`}
           titre={`Bonjour, ${agent.prenom} !`}

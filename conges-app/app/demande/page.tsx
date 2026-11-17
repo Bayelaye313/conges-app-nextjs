@@ -151,7 +151,7 @@ function DemandeForm() {
   return (
     <>
       <BarreNavigation />
-      <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:py-8">
+      <main className="page-container max-w-6xl">
         <Link href="/dashboard" className={classesBouton("fantome", "sm", "-ml-3 mb-3")}>
           <ArrowLeft className="h-4 w-4" aria-hidden />
           Retour à mon espace
