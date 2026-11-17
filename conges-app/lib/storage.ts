@@ -3,14 +3,11 @@ import path from "path";
 import { createHash } from "crypto";
 
 /**
- * Deux stockages possibles pour le registre (un seul document JSON) :
- * - "fichier" (par défaut) : data/registre.json — développement, VPS, scripts.
- * - "blobs" (CONGES_STOCKAGE=blobs) : Netlify Blobs — production sur Netlify,
- *   où le disque n'est pas persistant et où plusieurs instances tournent.
- *
- * Les écritures sont conditionnelles (version lue = version courante), avec
- * nouvelle tentative : deux soumissions simultanées ne peuvent jamais
- * s'écraser, même sur plusieurs instances.
+ * Stockages du registre (un document JSON) :
+ * - "fichier" (par défaut) pour le développement et un serveur unique.
+ * - "blobs" pour la compatibilité avec les anciens déploiements Netlify.
+ * - "postgres" pour les déploiements multi-instances et les mises à jour
+ *   transactionnelles, avec verrouillage du document pendant sa modification.
  */
 
 const CLE_REGISTRE = "registre.json";
@@ -29,6 +26,10 @@ interface Backend {
   /** Écrit si la version courante vaut `versionAttendue` (null = la clé ne doit pas exister). */
   ecrire<T>(cle: string, data: T, versionAttendue: string | null): Promise<boolean>;
   supprimer(cle: string): Promise<void>;
+  modifier?<T, R>(
+    cle: string,
+    modifier: (data: T) => { ecrire: boolean; resultat: R } | Promise<{ ecrire: boolean; resultat: R }>
+  ): Promise<R>;
 }
 
 // -------------------- FICHIER --------------------
@@ -147,12 +148,123 @@ const backendBlobs: Backend = {
   }
 };
 
-export function typeStockage(): "fichier" | "blobs" {
-  return process.env.CONGES_STOCKAGE === "blobs" ? "blobs" : "fichier";
+// -------------------- POSTGRESQL --------------------
+type Sql = import("postgres").Sql;
+let clientPostgres: Promise<Sql> | undefined;
+
+async function obtenirClientPostgres(): Promise<Sql> {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL manquant pour le stockage PostgreSQL.");
+  clientPostgres ??= import("postgres").then(({ default: postgres }) =>
+    postgres(url, { max: 1, idle_timeout: 5, connect_timeout: 5, prepare: false })
+  );
+  try {
+    return await clientPostgres;
+  } catch (e) {
+    clientPostgres = undefined;
+    throw e;
+  }
+}
+
+function serialiserJson(data: unknown): string {
+  const json = JSON.stringify(data);
+  if (json === undefined) throw new TypeError("Document impossible à sérialiser en JSON.");
+  return json;
+}
+
+export async function initialiserStockagePostgres(): Promise<void> {
+  const sql = await obtenirClientPostgres();
+  await sql`
+    CREATE TABLE IF NOT EXISTS conges_documents (
+      key text PRIMARY KEY,
+      data jsonb NOT NULL,
+      version bigint NOT NULL DEFAULT 1
+    )
+  `;
+}
+
+const backendPostgres: Backend = {
+  async lire<T>(cle: string) {
+    const sql = await obtenirClientPostgres();
+    const lignes = await sql<{ data: T; version: string }[]>`
+      SELECT data, version::text AS version
+      FROM conges_documents
+      WHERE key = ${cle}
+    `;
+    return lignes[0] ?? null;
+  },
+
+  async ecrire<T>(cle: string, data: T, versionAttendue: string | null) {
+    const sql = await obtenirClientPostgres();
+    const lignes =
+      versionAttendue === null
+        ? await sql<{ version: string }[]>`
+            INSERT INTO conges_documents (key, data)
+            VALUES (${cle}, ${serialiserJson(data)}::jsonb)
+            ON CONFLICT (key) DO NOTHING
+            RETURNING version::text AS version
+          `
+        : await sql<{ version: string }[]>`
+            UPDATE conges_documents
+            SET data = ${serialiserJson(data)}::jsonb, version = version + 1
+            WHERE key = ${cle} AND version = ${versionAttendue}::bigint
+            RETURNING version::text AS version
+          `;
+    return lignes.length === 1;
+  },
+
+  async modifier<T, R>(
+    cle: string,
+    modifier: (
+      data: T
+    ) => { ecrire: boolean; resultat: R } | Promise<{ ecrire: boolean; resultat: R }>
+  ): Promise<R> {
+    const sql = await obtenirClientPostgres();
+    const transaction = await sql.begin(async (tx) => {
+      await tx`SET LOCAL lock_timeout = '8s'`;
+      const lignes = await tx<{ data: T }[]>`
+        SELECT data
+        FROM conges_documents
+        WHERE key = ${cle}
+        FOR UPDATE
+      `;
+      const lu = lignes[0];
+      if (!lu) throw new Error(`Document ${cle} introuvable.`);
+
+      const { ecrire, resultat } = await modifier(lu.data);
+      if (ecrire) {
+        await tx`
+          UPDATE conges_documents
+          SET data = ${serialiserJson(lu.data)}::jsonb, version = version + 1
+          WHERE key = ${cle}
+        `;
+      }
+      return { resultat };
+    });
+    return transaction.resultat;
+  },
+
+  async supprimer(cle: string) {
+    const sql = await obtenirClientPostgres();
+    await sql`DELETE FROM conges_documents WHERE key = ${cle}`;
+  }
+};
+
+export function typeStockage(): "fichier" | "blobs" | "postgres" {
+  if (process.env.CONGES_STOCKAGE === "blobs") return "blobs";
+  if (process.env.CONGES_STOCKAGE === "postgres") return "postgres";
+  return "fichier";
 }
 
 function backend(): Backend {
-  return typeStockage() === "blobs" ? backendBlobs : backendFichier;
+  switch (typeStockage()) {
+    case "blobs":
+      return backendBlobs;
+    case "postgres":
+      return backendPostgres;
+    default:
+      return backendFichier;
+  }
 }
 
 // -------------------- API GENERIQUE --------------------
@@ -178,12 +290,15 @@ export async function modifierDocument<T, R>(
   modifier: (doc: T) => { ecrire: boolean; resultat: R } | Promise<{ ecrire: boolean; resultat: R }>,
   cle: string = CLE_REGISTRE
 ): Promise<R> {
+  const stockage = backend();
+  if (stockage.modifier) return stockage.modifier(cle, modifier);
+
   for (let tentative = 0; tentative < 8; tentative++) {
-    const lu = await backend().lire<T>(cle);
+    const lu = await stockage.lire<T>(cle);
     if (!lu) throw new Error(`Document ${cle} introuvable.`);
     const { ecrire, resultat } = await modifier(lu.data);
     if (!ecrire) return resultat;
-    if (await backend().ecrire(cle, lu.data, lu.version)) return resultat;
+    if (await stockage.ecrire(cle, lu.data, lu.version)) return resultat;
     await new Promise((r) => setTimeout(r, 20 + Math.random() * 80 * (tentative + 1)));
   }
   throw new ConflitEcritureError("Trop de modifications simultanées, réessayez dans un instant.");

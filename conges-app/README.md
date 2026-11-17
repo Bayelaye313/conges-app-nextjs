@@ -48,27 +48,34 @@ puis **supprimer le fichier**. Chaque titulaire choisit son code à la première
 
 ## Déploiement sur Netlify
 
-Le disque de Netlify n'est pas persistant : en production, le registre est stocké dans
-**Netlify Blobs** (écritures conditionnelles, aucune soumission ne peut en écraser une autre).
+Le disque de Netlify n'est pas persistant. En production, utilisez **Neon PostgreSQL** :
+les mises à jour du registre se font dans une transaction qui verrouille le document pendant
+la vérification des règles et l'écriture. Cela empêche les soumissions simultanées de se
+remplacer ou de dépasser un plafond de congés à cause d'une lecture obsolète. Les requêtes
+concurrentes sont traitées l'une après l'autre pour préserver ces règles.
 
-1. Pousser le projet sur GitHub/GitLab (le dossier `data/` est exclu par `.gitignore`), puis
+1. Créer un projet Neon PostgreSQL et récupérer l'URL de connexion **poolée** (hostname contenant
+   `-pooler`). Pousser le projet sur GitHub/GitLab (le dossier `data/` est exclu par `.gitignore`), puis
    « Add new site → Import an existing project ». `netlify.toml` (à la racine) indique le
    dossier `conges-app`.
 2. Variables d'environnement du site :
    - `SESSION_SECRET` : `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`
-   - `CONGES_STOCKAGE` = `blobs`
-3. Déployer, puis envoyer le registre préparé localement :
+   - `CONGES_STOCKAGE` = `postgres`
+   - `DATABASE_URL` = URL poolée Neon (à garder secrète)
+3. En local, définir la même URL `DATABASE_URL` dans `conges-app/.env.local`, puis initialiser
+   la table et importer le registre local :
    ```bash
-   export NETLIFY_SITE_ID=...      # Site configuration → Site details → Site ID
-   export NETLIFY_AUTH_TOKEN=...   # User settings → Applications → Personal access tokens
-   npm run registre:publier
+   npm run registre:db -- publier
    ```
+   La commande refuse d'écraser un registre déjà présent, sauf avec `--force`. Vérifier ensuite
+   que les agents, les codes et les vœux sont bien présents, puis déployer l'application.
    À partir de là, tout se fait dans l'application (l'admin génère les codes oubliés).
-4. Fin de campagne : exporter depuis l'espace admin, et/ou `npm run registre:recuperer`.
+4. Fin de campagne : exporter depuis l'espace admin, et/ou récupérer une copie locale :
+   `npm run registre:db -- recuperer`.
 
-Pour un serveur classique (VPS) : `npm run build && npm start` avec `SESSION_SECRET` défini,
-derrière un proxy HTTPS ; le registre reste alors dans `data/registre.json` (une seule
-instance, sauvegardes à prévoir).
+Pour un serveur classique (VPS), PostgreSQL est aussi recommandé dès qu'il y a plusieurs
+instances. Le stockage fichier reste disponible pour le développement ou un serveur unique
+à faible trafic ; il ne convient pas à plusieurs instances.
 
 ## Sécurité
 
@@ -84,9 +91,9 @@ instance, sauvegardes à prévoir).
 | Commande | Rôle |
 |---|---|
 | `npm run dev` | Développement (stockage fichier) |
-| `npm test` | 37 tests : règles, calendrier, plafonds, solde projeté, sessions, concurrence |
+| `npm test` | Tests : règles, calendrier, plafonds, solde projeté, sessions, concurrence |
 | `npm run lint` / `npm run typecheck` | Qualité du code |
-| `npm run registre:publier` / `registre:recuperer` | Transfert local ↔ Netlify |
+| `npm run registre:db -- publier` / `recuperer` | Transfert local ↔ PostgreSQL |
 
 ## Avertissement juridique
 
