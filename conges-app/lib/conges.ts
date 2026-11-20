@@ -29,10 +29,12 @@ export interface Periode {
 }
 
 export type StatutDemande = "en_attente" | "valide" | "supprime";
+export type TypeDemande = "conge" | "recuperation";
 
-/** Vœu de congé déposé dans l'application : 1 période continue ou 2 périodes distinctes. */
+/** Demande de congé ou de récupération : 1 période continue ou 2 périodes distinctes. */
 export interface Demande {
   id: string;
+  type?: TypeDemande;
   periodes: Periode[];
   jours: number;
   statut: StatutDemande;
@@ -57,6 +59,8 @@ export interface Agent {
   date_embauche: string;
   /** Cumul des jours pris selon le tableau RH, congés déjà planifiés inclus. */
   jours_pris_reprise: number;
+  /** Fin de congé connue sans période détaillée. */
+  dernier_conge_fin?: string | null;
   /** Congés repris de l'ancien suivi (déjà inclus dans jours_pris_reprise). */
   historique: Periode[];
   demandes: Demande[];
@@ -166,7 +170,7 @@ interface Conge {
 }
 
 export function congesDeLAgent(agent: Agent): Conge[] {
-  return [
+  const conges: Conge[] = [
     ...agent.historique.map((p) => ({ debut: p.debut, fin: p.fin, periodes: [p] })),
     ...demandesActives(agent).map((d) => ({
       debut: d.periodes[0].debut,
@@ -174,6 +178,11 @@ export function congesDeLAgent(agent: Agent): Conge[] {
       periodes: d.periodes
     }))
   ];
+  if (agent.dernier_conge_fin && !agent.historique.length) {
+    const periode = { debut: agent.dernier_conge_fin, fin: agent.dernier_conge_fin, jours: 0 };
+    conges.push({ debut: periode.debut, fin: periode.fin, periodes: [periode] });
+  }
+  return conges;
 }
 
 export function dernierConge(agent: Agent): Conge | null {
@@ -540,7 +549,11 @@ export interface ResultatAction {
   message: string;
 }
 
-export function soumettreDemande(matricule: string, periodes: Periode[]): Promise<ResultatAction> {
+export function soumettreDemande(
+  matricule: string,
+  periodes: Periode[],
+  type: TypeDemande = "conge"
+): Promise<ResultatAction> {
   return modifierDocument<Registre, ResultatAction>((registre) => {
     const agent = trouverAgent(registre, matricule);
     if (!agent) return { ecrire: false, resultat: { succes: false, message: "❌ Agent introuvable." } };
@@ -549,11 +562,14 @@ export function soumettreDemande(matricule: string, periodes: Periode[]): Promis
     if (!verif.ok) return { ecrire: false, resultat: { succes: false, message: verif.message } };
 
     const jours = periodes.reduce((s, p) => s + p.jours, 0);
-    agent.demandes.push({ id: randomUUID(), periodes, jours, statut: "en_attente", cree_le: new Date().toISOString() });
+    agent.demandes.push({ id: randomUUID(), type, periodes, jours, statut: "en_attente", cree_le: new Date().toISOString() });
     const resume = periodes.map((p) => `du ${formatFr(p.debut)} au ${formatFr(p.fin)}`).join(" et ");
     return {
       ecrire: true,
-      resultat: { succes: true, message: `✅ Vœu enregistré ${resume} (${jours} jours), en attente de validation.` }
+      resultat: {
+        succes: true,
+        message: `✅ ${type === "recuperation" ? "Demande de récupération enregistrée" : "Vœu enregistré"} ${resume} (${jours} jours), en attente de validation.`
+      }
     };
   });
 }

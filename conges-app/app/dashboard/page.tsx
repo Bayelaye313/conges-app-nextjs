@@ -11,6 +11,7 @@ import {
   History,
   Plane,
   Plus,
+  RefreshCw,
   Wallet,
   X
 } from "lucide-react";
@@ -42,6 +43,7 @@ interface Periode {
 
 interface Demande {
   id: string;
+  type?: "conge" | "recuperation";
   periodes: Periode[];
   jours: number;
   statut: "en_attente" | "valide" | "supprime";
@@ -141,10 +143,16 @@ export default function DashboardPage() {
           titre={`Bonjour, ${agent.prenom} !`}
           description="Voici l'état de vos droits à congé et le suivi de vos vœux."
           actions={
-            <Link href="/demande" className={classesBouton("primaire", "lg")}>
-              <Plus className="h-5 w-5" aria-hidden />
-              Déposer un vœu
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/demande" className={classesBouton("primaire", "lg")}>
+                <Plus className="h-5 w-5" aria-hidden />
+                Déposer un vœu
+              </Link>
+              <Link href="/recuperation" className={classesBouton("secondaire", "lg")}>
+                <RefreshCw className="h-5 w-5" aria-hidden />
+                Demander une récupération
+              </Link>
+            </div>
           }
         />
 
@@ -190,15 +198,21 @@ export default function DashboardPage() {
         <div className="mt-6 grid gap-5 lg:grid-cols-5">
           <section className="lg:col-span-3">
             <Carte>
-              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3.5">
                 <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
-                  Mes vœux de congé
+                  Mes demandes
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{voeuxActifs.length}</span>
                 </h2>
-                <Link href="/demande" className={classesBouton("secondaire", "sm")}>
-                  <Plus className="h-4 w-4" aria-hidden />
-                  Nouveau
-                </Link>
+                <div className="flex flex-wrap gap-2">
+                  <Link href="/demande" className={classesBouton("secondaire", "sm")}>
+                    <Plus className="h-4 w-4" aria-hidden />
+                    Congé
+                  </Link>
+                  <Link href="/recuperation" className={classesBouton("secondaire", "sm")}>
+                    <RefreshCw className="h-4 w-4" aria-hidden />
+                    Récupération
+                  </Link>
+                </div>
               </div>
               {message && <Alerte type="info" role="status" className="mx-5 mt-4">{message}</Alerte>}
               {agent.demandes.length === 0 ? (
@@ -206,7 +220,7 @@ export default function DashboardPage() {
                   <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
                     <CalendarPlus className="h-6 w-6" aria-hidden />
                   </span>
-                  <p className="mt-3 text-base font-semibold text-slate-900">Aucun vœu pour l&apos;instant</p>
+                  <p className="mt-3 text-base font-semibold text-slate-900">Aucune demande pour l&apos;instant</p>
                   <p className="mt-1 max-w-xs text-sm text-slate-500">
                     Consultez les disponibilités puis déposez votre premier vœu de congé.
                   </p>
@@ -218,6 +232,9 @@ export default function DashboardPage() {
                     <li key={d.id} className={`px-5 py-3.5 ${d.statut === "supprime" ? "opacity-60" : ""}`}>
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="space-y-1">
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${d.type === "recuperation" ? "bg-amber-50 text-amber-700" : "bg-brand-50 text-brand-700"}`}>
+                            {d.type === "recuperation" ? "Récupération du solde" : "Congé"}
+                          </span>
                           {d.periodes.map((p) => (
                             <p key={p.debut} className="flex flex-wrap items-center gap-2 text-[15px] font-semibold text-slate-900">
                               {formatFr(p.debut)}

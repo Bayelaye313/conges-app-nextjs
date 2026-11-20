@@ -10,6 +10,7 @@ import {
   DatabaseBackup,
   Download,
   KeyRound,
+  Pencil,
   RefreshCw,
   Search,
   Trash2,
@@ -41,6 +42,7 @@ interface Periode {
 
 interface LigneDemande {
   id: string;
+  type?: "conge" | "recuperation";
   matricule: string;
   prenom: string;
   nom: string;
@@ -60,10 +62,12 @@ interface LigneAgent {
   nom: string;
   fonction: string;
   role: Role;
+  jours_pris_reprise: number;
   date_embauche: string;
   date_anniversaire: string;
   solde: number;
   dernier_conge_fin: string | null;
+  dernier_conge_historique_fin: string | null;
   premiere_date_possible: string;
   solde_a_cette_date: number;
   date_solde_suffisant: string | null;
@@ -106,6 +110,18 @@ interface Synthese {
 
 type Onglet = "voeux" | "sans_voeu" | "agents" | "occupation";
 
+interface EditionAgent {
+  matricule: string;
+  nouveau_matricule: string;
+  prenom: string;
+  nom: string;
+  fonction: string;
+  role: Role;
+  date_embauche: string;
+  jours_pris_reprise: string;
+  dernier_conge_fin: string;
+}
+
 function correspond(recherche: string, ...champs: string[]) {
   const r = recherche.trim().toLowerCase();
   return !r || champs.some((c) => c.toLowerCase().includes(r));
@@ -119,9 +135,12 @@ export default function AdminPage() {
   const [onglet, setOnglet] = useState<Onglet>("voeux");
   const [filtreStatut, setFiltreStatut] = useState<"tous" | LigneDemande["statut"]>("en_attente");
   const [filtreRole, setFiltreRole] = useState<"tous" | Role>("tous");
+  const [filtreType, setFiltreType] = useState<"tous" | "conge" | "recuperation">("tous");
   const [recherche, setRecherche] = useState("");
   const [enCours, setEnCours] = useState<string | null>(null);
   const [codeAffiche, setCodeAffiche] = useState<{ matricule: string; nom: string; code: string } | null>(null);
+  const [edition, setEdition] = useState<EditionAgent | null>(null);
+  const [erreurEdition, setErreurEdition] = useState("");
 
   const charger = useCallback(() => {
     appelApi<Synthese>(router, "/api/admin/synthese")
@@ -187,15 +206,56 @@ export default function AdminPage() {
     }
   }
 
+  function ouvrirEdition(a: LigneAgent) {
+    setEdition({
+      matricule: a.matricule,
+      nouveau_matricule: a.matricule,
+      prenom: a.prenom,
+      nom: a.nom,
+      fonction: a.fonction,
+      role: a.role,
+      date_embauche: a.date_embauche,
+      jours_pris_reprise: String(a.jours_pris_reprise),
+      dernier_conge_fin: a.dernier_conge_historique_fin ?? ""
+    });
+    setErreurEdition("");
+  }
+
+  async function enregistrerEdition(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!edition) return;
+    setEnCours(`agent-${edition.matricule}`);
+    setErreurEdition("");
+    try {
+      const { data } = await appelApi(router, "/api/admin/agents", {
+        ...edition,
+        jours_pris_reprise: Number(edition.jours_pris_reprise),
+        dernier_conge_fin: edition.dernier_conge_fin || null
+      });
+      if (!data.ok) {
+        setErreurEdition(data.message ?? "La mise à jour a échoué.");
+      } else {
+        setMessage(`${edition.matricule} — ${data.message}`);
+        setEdition(null);
+        charger();
+      }
+    } catch (err) {
+      if (!(err instanceof RedirectionEnCours)) setErreurEdition((err as Error).message);
+    } finally {
+      setEnCours(null);
+    }
+  }
+
   const demandesFiltrees = useMemo(
     () =>
       (s?.demandes ?? []).filter(
         (d) =>
           (filtreStatut === "tous" || d.statut === filtreStatut) &&
           (filtreRole === "tous" || d.role === filtreRole) &&
+          (filtreType === "tous" || (d.type ?? "conge") === filtreType) &&
           correspond(recherche, d.matricule, d.prenom, d.nom)
       ),
-    [s, filtreStatut, filtreRole, recherche]
+    [s, filtreStatut, filtreRole, filtreType, recherche]
   );
 
   const agentsFiltres = useMemo(
@@ -323,6 +383,71 @@ export default function AdminPage() {
         )}
         {message && <Alerte type="info" role="status" className="mt-4">{message}</Alerte>}
 
+        {edition && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/40 p-4" role="presentation">
+            <form
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="titre-edition-agent"
+              onSubmit={enregistrerEdition}
+              className="my-auto w-full max-w-2xl rounded-2xl bg-white p-5 shadow-xl sm:p-6"
+            >
+              <div className="mb-5">
+                <h2 id="titre-edition-agent" className="text-lg font-bold text-slate-900">
+                  Modifier l’agent {edition.matricule}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">Si le matricule change, l’agent devra se reconnecter avec le nouveau. Son code d’accès et son historique sont conservés.</p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="libelle">
+                  Matricule
+                  <input required maxLength={20} pattern="[A-Za-z0-9]+" className="champ" value={edition.nouveau_matricule} onChange={(e) => setEdition({ ...edition, nouveau_matricule: e.target.value })} />
+                </label>
+                <label className="libelle">
+                  Prénom
+                  <input required maxLength={100} className="champ" value={edition.prenom} onChange={(e) => setEdition({ ...edition, prenom: e.target.value })} />
+                </label>
+                <label className="libelle">
+                  Nom
+                  <input required maxLength={100} className="champ" value={edition.nom} onChange={(e) => setEdition({ ...edition, nom: e.target.value })} />
+                </label>
+                <label className="libelle">
+                  Fonction
+                  <input required maxLength={100} className="champ" value={edition.fonction} onChange={(e) => setEdition({ ...edition, fonction: e.target.value })} />
+                </label>
+                <label className="libelle">
+                  Rôle
+                  <select className="champ" value={edition.role} onChange={(e) => setEdition({ ...edition, role: e.target.value as Role })}>
+                    <option value="AV">Agent de vente (AV)</option>
+                    <option value="CEV">Chef d’équipe vente (CEV)</option>
+                    <option value="CS">Chef de secteur (CS)</option>
+                  </select>
+                </label>
+                <label className="libelle">
+                  Date d’embauche
+                  <input required type="date" className="champ" value={edition.date_embauche} onChange={(e) => setEdition({ ...edition, date_embauche: e.target.value })} />
+                </label>
+                <label className="libelle">
+                  Jours pris (cumul)
+                  <input required type="number" min={0} max={9999} step={1} className="champ" value={edition.jours_pris_reprise} onChange={(e) => setEdition({ ...edition, jours_pris_reprise: e.target.value })} />
+                </label>
+                <label className="libelle sm:col-span-2">
+                  Fin du dernier congé
+                  <input type="date" className="champ" value={edition.dernier_conge_fin} onChange={(e) => setEdition({ ...edition, dernier_conge_fin: e.target.value })} />
+                  <span className="mt-1 block font-normal text-slate-500">La période la plus récente sera corrigée et ses jours recalculés. Sans historique détaillé, cette date sert de repère pour le délai de 12 mois. Le cumul des jours pris se modifie séparément.</span>
+                </label>
+              </div>
+              {erreurEdition && <Alerte type="erreur" className="mt-4">{erreurEdition}</Alerte>}
+              <div className="mt-6 flex justify-end gap-2">
+                <Bouton type="button" variante="secondaire" onClick={() => setEdition(null)}>Annuler</Bouton>
+                <Bouton type="submit" disabled={enCours !== null}>
+                  {enCours === `agent-${edition.matricule}` ? "Enregistrement…" : "Enregistrer"}
+                </Bouton>
+              </div>
+            </form>
+          </div>
+        )}
+
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1">
             {lienOnglet("voeux", "Vœux", s.demandes.length)}
@@ -349,12 +474,19 @@ export default function AdminPage() {
                 <option value="CS">CS</option>
               </select>
               {onglet === "voeux" && (
-                <select aria-label="Filtrer par statut" value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value as typeof filtreStatut)} className={filtre}>
-                  <option value="tous">Tous statuts</option>
-                  <option value="en_attente">En attente</option>
-                  <option value="valide">Validés</option>
-                  <option value="supprime">Supprimés</option>
-                </select>
+                <>
+                  <select aria-label="Filtrer par type" value={filtreType} onChange={(e) => setFiltreType(e.target.value as typeof filtreType)} className={filtre}>
+                    <option value="tous">Toutes demandes</option>
+                    <option value="conge">Congés</option>
+                    <option value="recuperation">Récupérations</option>
+                  </select>
+                  <select aria-label="Filtrer par statut" value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value as typeof filtreStatut)} className={filtre}>
+                    <option value="tous">Tous statuts</option>
+                    <option value="en_attente">En attente</option>
+                    <option value="valide">Validés</option>
+                    <option value="supprime">Supprimés</option>
+                  </select>
+                </>
               )}
             </div>
           )}
@@ -367,7 +499,7 @@ export default function AdminPage() {
                 {demandesFiltrees.some((d) => d.statut === "en_attente") && (
                   <div className="flex items-center justify-between gap-3 border-b border-amber-200/70 bg-amber-50/60 px-4 py-2">
                     <p className="text-sm text-amber-900">
-                      {demandesFiltrees.filter((d) => d.statut === "en_attente").length} vœu(x) en attente dans cette liste
+                      {demandesFiltrees.filter((d) => d.statut === "en_attente").length} demande(s) en attente dans cette liste
                     </p>
                     <Bouton variante="succes" taille="sm" disabled={enCours !== null} onClick={() => validerTout(demandesFiltrees)}>
                       <CheckCheck className="h-4 w-4" aria-hidden /> Tout valider
@@ -376,15 +508,20 @@ export default function AdminPage() {
                 )}
                 <table className="w-full text-sm tabular-nums text-slate-700">
                   <thead className={entete}>
-                    <tr><th className={cellule}>Agent</th><th className={cellule}>Départ → retour</th><th className={cellule}>Jours</th><th className={cellule}>Soumis le</th><th className={cellule}>Statut</th><th className={cellule}></th></tr>
+                    <tr><th className={cellule}>Agent</th><th className={cellule}>Type</th><th className={cellule}>Départ → retour</th><th className={cellule}>Jours</th><th className={cellule}>Soumis le</th><th className={cellule}>Statut</th><th className={cellule}></th></tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {demandesFiltrees.length === 0 && (
-                      <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-500">Aucun vœu pour ces filtres.</td></tr>
+                      <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-500">Aucune demande pour ces filtres.</td></tr>
                     )}
                     {demandesFiltrees.map((d) => (
                       <tr key={d.id} className="transition hover:bg-slate-50">
                         <td className={cellule}>{agentCellule(d.matricule, d.prenom, d.nom, d.role)}</td>
+                        <td className={cellule}>
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${d.type === "recuperation" ? "bg-amber-50 text-amber-700" : "bg-brand-50 text-brand-700"}`}>
+                            {d.type === "recuperation" ? "Récupération" : "Congé"}
+                          </span>
+                        </td>
                         <td className={cellule}>
                           {d.periodes.map((p) => (
                             <div key={p.debut} className="font-medium text-slate-900">{formatFr(p.debut)} → {formatFr(dateRetour(p.fin))}</div>
@@ -423,13 +560,14 @@ export default function AdminPage() {
                   <tr>
                     <th className={cellule}>Agent</th><th className={cellule}>Entrée</th><th className={cellule}>Solde auj.</th>
                     <th className={cellule}>1er départ possible</th><th className={cellule}>Solde à cette date</th>
-                    {onglet === "agents" && <th className={cellule}>Vœux</th>}
+                    {onglet === "agents" && <><th className={cellule}>Dernier congé</th><th className={cellule}>Vœux</th></>}
                     <th className={cellule}>Accès</th>
+                    {onglet === "agents" && <th className={cellule}>Informations</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {agentsFiltres.length === 0 && (
-                    <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-500">Aucun agent pour ces filtres.</td></tr>
+                    <tr><td colSpan={onglet === "agents" ? 9 : 6} className="px-4 py-10 text-center text-slate-500">Aucun agent pour ces filtres.</td></tr>
                   )}
                   {agentsFiltres.map((a) => (
                     <tr key={a.matricule} className="transition hover:bg-slate-50">
@@ -450,6 +588,7 @@ export default function AdminPage() {
                           </div>
                         )}
                       </td>
+                      {onglet === "agents" && <td className={cellule}>{a.dernier_conge_historique_fin ? formatFr(a.dernier_conge_historique_fin) : "—"}</td>}
                       {onglet === "agents" && <td className={cellule}>{a.voeux_actifs || "—"}</td>}
                       <td className={`${cellule} whitespace-nowrap`}>
                         <div className="flex items-center gap-2">
@@ -464,6 +603,13 @@ export default function AdminPage() {
                           </Bouton>
                         </div>
                       </td>
+                      {onglet === "agents" && (
+                        <td className={cellule}>
+                          <Bouton variante="fantome" taille="sm" onClick={() => ouvrirEdition(a)} title={`Modifier les informations de ${a.prenom} ${a.nom}`}>
+                            <Pencil className="h-4 w-4" aria-hidden /> Modifier
+                          </Bouton>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

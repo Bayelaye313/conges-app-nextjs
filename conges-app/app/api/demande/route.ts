@@ -23,6 +23,7 @@ const Choix = z.object({
 
 const Corps = z.object({
   periodes: z.array(Choix).min(1).max(2),
+  type: z.enum(["conge", "recuperation"]).optional(),
   confirmer: z.boolean().optional()
 });
 
@@ -32,14 +33,14 @@ export async function POST(req: NextRequest) {
 
   const corps = await lireCorps(req, Corps);
   if (!corps.ok) return corps.reponse;
-  const { confirmer } = corps.data;
+  const { confirmer, type = "conge" } = corps.data;
 
   const construction = construirePeriodes(corps.data.periodes);
   if (construction.status === "erreur") return erreur(422, construction.message);
   const periodes = construction.periodes;
 
   if (confirmer) {
-    const resultat = await soumettreDemande(session.compte.matricule, periodes);
+    const resultat = await soumettreDemande(session.compte.matricule, periodes, type);
     return NextResponse.json({ ok: resultat.succes, message: resultat.message }, { status: resultat.succes ? 200 : 422 });
   }
 

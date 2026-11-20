@@ -12,10 +12,73 @@ import {
   strToDate,
   ajouterJours,
   type Demande,
+  type Agent,
   type OccupationQuinzaine,
   type Registre,
   type Role
 } from "./conges";
+import { compterJoursDecomptes } from "./calendrier";
+
+export interface InfosAgentModifiables {
+  matricule: string;
+  prenom: string;
+  nom: string;
+  fonction: string;
+  role: Role;
+  date_embauche: string;
+  jours_pris_reprise: number;
+  dernier_conge_fin: string | null;
+}
+
+function chevauche(a: { debut: string; fin: string }, b: { debut: string; fin: string }): boolean {
+  return !(a.fin < b.debut || a.debut > b.fin);
+}
+
+/** Met à jour les informations RH sans modifier l'authentification ni les demandes. */
+export function mettreAJourInfosAgent(agent: Agent, infos: InfosAgentModifiables): string | null {
+  const dernierePeriode = agent.historique.reduce<(typeof agent.historique)[number] | null>(
+    (max, p) => (!max || p.fin > max.fin ? p : max),
+    null
+  );
+  const fin = infos.dernier_conge_fin;
+
+  if (dernierePeriode && !fin) {
+    return "La date de fin ne peut pas être vide tant qu'un congé figure dans l'historique.";
+  }
+  if (fin) {
+    const periodeModifiee = dernierePeriode
+      ? { debut: dernierePeriode.debut, fin }
+      : { debut: fin, fin };
+    if (periodeModifiee.fin < periodeModifiee.debut) {
+      return "La date de fin ne peut pas précéder le début du congé.";
+    }
+
+    const autresPeriodes = [
+      ...agent.historique.filter((p) => p !== dernierePeriode),
+      ...demandesActives(agent).flatMap((d) => d.periodes)
+    ];
+    if (autresPeriodes.some((p) => chevauche(periodeModifiee, p))) {
+      return "Cette date ferait chevaucher le congé avec une autre période enregistrée.";
+    }
+  }
+
+  agent.matricule = infos.matricule;
+  agent.prenom = infos.prenom;
+  agent.nom = infos.nom;
+  agent.fonction = infos.fonction;
+  agent.role = infos.role;
+  agent.date_embauche = infos.date_embauche;
+  agent.jours_pris_reprise = infos.jours_pris_reprise;
+
+  if (dernierePeriode && fin) {
+    dernierePeriode.fin = fin;
+    dernierePeriode.jours = compterJoursDecomptes(dernierePeriode.debut, fin);
+    delete agent.dernier_conge_fin;
+  } else {
+    agent.dernier_conge_fin = fin;
+  }
+  return null;
+}
 
 export interface LigneAgent {
   matricule: string;
@@ -23,10 +86,12 @@ export interface LigneAgent {
   nom: string;
   fonction: string;
   role: Role;
+  jours_pris_reprise: number;
   date_embauche: string;
   date_anniversaire: string;
   solde: number;
   dernier_conge_fin: string | null;
+  dernier_conge_historique_fin: string | null;
   premiere_date_possible: string;
   solde_a_cette_date: number;
   /** Première date (dans les 18 mois) où le solde atteint le minimum de jours, ou null. */
@@ -88,10 +153,15 @@ export function construireSynthese(registre: Registre, aujourdHui: Date): Synthe
         nom: a.nom,
         fonction: a.fonction,
         role: a.role,
+        jours_pris_reprise: a.jours_pris_reprise,
         date_embauche: a.date_embauche,
         date_anniversaire: dateAnniversaire(a),
         solde: solde(a, aujourdHui),
         dernier_conge_fin: dernierConge(a)?.fin ?? null,
+        dernier_conge_historique_fin:
+          a.historique.reduce<string | null>((max, p) => (!max || p.fin > max ? p.fin : max), null) ??
+          a.dernier_conge_fin ??
+          null,
         premiere_date_possible: premiere,
         solde_a_cette_date: solde(a, strToDate(premiere)),
         date_solde_suffisant: dateSoldeSuffisant(a, premiere),
@@ -167,7 +237,7 @@ export function exportVoeux(registre: Registre): string {
       const [p1, p2] = d.periodes;
       const retour = (p: typeof p1 | undefined) => (p ? dateToStr(ajouterJours(strToDate(p.fin), 1)) : "");
       return [
-        a.matricule, a.prenom, a.nom, a.fonction, a.role, STATUTS[d.statut], d.jours,
+        a.matricule, a.prenom, a.nom, a.fonction, a.role, d.type === "recuperation" ? "Récupération" : "Congé", STATUTS[d.statut], d.jours,
         fr(p1?.debut), fr(retour(p1)), p1?.jours ?? "",
         fr(p2?.debut), fr(retour(p2)), p2?.jours ?? "",
         fr(d.cree_le), fr(d.traite_le), d.traite_par ?? "", d.motif ?? "", d.id
@@ -175,7 +245,7 @@ export function exportVoeux(registre: Registre): string {
     })
   );
   return csv(
-    ["Matricule", "Prénom", "Nom", "Fonction", "Rôle", "Statut", "Jours",
+    ["Matricule", "Prénom", "Nom", "Fonction", "Rôle", "Type", "Statut", "Jours",
       "Départ 1", "Retour 1", "Jours 1", "Départ 2", "Retour 2", "Jours 2",
       "Soumis le", "Traité le", "Traité par", "Motif", "Identifiant"],
     lignes

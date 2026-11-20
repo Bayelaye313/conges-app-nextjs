@@ -13,6 +13,7 @@ import {
   LogOut,
   Menu,
   Palmtree,
+  RefreshCw,
   Scale,
   TriangleAlert,
   UserRound,
@@ -197,6 +198,7 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
 
 const NAV_AGENT = [
   { href: "/dashboard", libelle: "Mon espace", icone: UserRound },
+  { href: "/recuperation", libelle: "Récupération du solde", icone: RefreshCw },
   { href: "/planning", libelle: "Disponibilités", icone: CalendarDays },
   { href: "/legal", libelle: "Cadre légal", icone: Scale }
 ];

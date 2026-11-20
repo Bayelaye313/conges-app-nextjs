@@ -20,7 +20,7 @@ import {
   type Registre
 } from "../lib/conges";
 import { compterJoursDecomptes, detailDecompte, estFerie, fetesExclusives, paques } from "../lib/calendrier";
-import { construireSynthese, exportVoeux } from "../lib/admin";
+import { construireSynthese, exportVoeux, mettreAJourInfosAgent } from "../lib/admin";
 
 const AUJOURDHUI = strToDate("2026-11-03");
 
@@ -343,11 +343,71 @@ describe("occupation et synthèse admin", () => {
     const a = agent({ demandes: [demande([{ debut: "2027-03-01", fin: "2027-03-12", jours: 11 }])] });
     const csv = exportVoeux(registre(a));
     expect(csv).toContain("01/03/2027;13/03/2027;11");
+    expect(csv).toContain("Type");
+    expect(csv).toContain(";Congé;");
+  });
+
+  it("exporte une demande de récupération avec son type", () => {
+    const d = demande([{ debut: "2027-03-01", fin: "2027-03-12", jours: 11 }]);
+    d.type = "recuperation";
+    const a = agent({ demandes: [d] });
+    expect(exportVoeux(registre(a))).toContain(";Récupération;En attente;");
   });
 
   it("neutralise les formules Excel dans l'export", () => {
     const a = agent({ nom: "=HYPERLINK(\"x\")", demandes: [demande(periodes(2027, 3, 11, "debut"))] });
     expect(exportVoeux(registre(a))).toContain("'=HYPERLINK");
+  });
+});
+
+describe("modification des informations RH par l'administration", () => {
+  const infos = {
+    matricule: "0002",
+    prenom: "Nouveau prénom",
+    nom: "NOUVEAU NOM",
+    fonction: "AGENT DE VENTE",
+    role: "AV" as const,
+    date_embauche: "2024-01-08",
+    jours_pris_reprise: 20,
+    dernier_conge_fin: "2027-03-15"
+  };
+
+  it("met à jour les données et recalcule les jours d'une période historique", () => {
+    const a = agent({
+      historique: [{ debut: "2027-03-01", fin: "2027-03-12", jours: 10 }],
+      auth: { hash: "conserve", doit_changer: false, modifie_le: "2026-01-01T00:00:00.000Z" }
+    });
+
+    expect(mettreAJourInfosAgent(a, infos)).toBeNull();
+    expect(a).toMatchObject({
+      matricule: "0002",
+      prenom: "Nouveau prénom",
+      nom: "NOUVEAU NOM",
+      date_embauche: "2024-01-08",
+      jours_pris_reprise: 20,
+      auth: { hash: "conserve" },
+      historique: [{ debut: "2027-03-01", fin: "2027-03-15", jours: 12 }]
+    });
+  });
+
+  it("refuse un historique chevauchant sans appliquer les autres changements", () => {
+    const a = agent({
+      prenom: "Avant",
+      historique: [{ debut: "2027-03-01", fin: "2027-03-12", jours: 10 }],
+      demandes: [demande([{ debut: "2027-03-14", fin: "2027-03-20", jours: 5 }])]
+    });
+
+    expect(mettreAJourInfosAgent(a, infos)).toContain("chevaucher");
+    expect(a.prenom).toBe("Avant");
+    expect(a.historique[0].fin).toBe("2027-03-12");
+  });
+
+  it("utilise une date repère lorsqu'aucune période historique détaillée n'existe", () => {
+    const a = agent({ historique: [] });
+    expect(mettreAJourInfosAgent(a, { ...infos, dernier_conge_fin: "2026-03-31" })).toBeNull();
+    expect(a.dernier_conge_fin).toBe("2026-03-31");
+    expect(premiereDatePossible(a, AUJOURDHUI)).toBe("2027-04-01");
+    expect(verifierDemande(registre(a), a, periodes(2027, 3, 11, "debut"), AUJOURDHUI).ok).toBe(false);
   });
 });
 
