@@ -4,6 +4,7 @@
  *
  *   npm run codes:generer                                 → agents qui n'ont encore aucun code
  *   npm run codes:generer -- --matricule 0291             → réinitialise un agent
+ *   npm run codes:generer -- --matricules 0352,0330       → codes de plusieurs agents ciblés
  *   npm run codes:generer -- --tous                       → réinitialise tous les agents
  *   npm run codes:generer -- --admin 0568 --nom "Prénom Nom" → crée/réinitialise un administrateur
  *   npm run codes:generer -- --role CEV,CS --code IcanPass2026 → même code provisoire pour tous les CEV et CS
@@ -32,6 +33,7 @@ async function main() {
   if (!registre) arreter("Registre introuvable : lancer d'abord importer:agents.");
 
   const matricule = argument("--matricule");
+  const matriculesArg = argument("--matricules");
   const admin = argument("--admin");
   const codeCommun = argument("--code");
   if (codeCommun !== undefined && codeCommun.length < CODE_MIN_LONGUEUR) {
@@ -40,10 +42,22 @@ async function main() {
   const rolesArg = argument("--role");
   const roles = rolesArg?.split(",").map((r) => r.trim().toUpperCase()) as Role[] | undefined;
   if (roles?.some((r) => !["AV", "CEV", "CS"].includes(r))) arreter("--role accepte AV, CEV, CS (séparés par des virgules).");
+  const selections = [matricule, matriculesArg, admin, rolesArg, drapeau("--tous") ? "--tous" : undefined].filter(Boolean);
+  if (selections.length > 1) arreter("Choisir un seul sélecteur parmi --matricule, --matricules, --admin, --role et --tous.");
   type Cible = { matricule: string; prenom: string; nom: string; fonction: string; admin: boolean };
   let cibles: Cible[];
 
-  if (admin) {
+  if (matriculesArg !== undefined) {
+    const liste = matriculesArg.split(",").map((m) => m.trim());
+    if (liste.some((m) => !m) || new Set(liste).size !== liste.length) {
+      arreter("--matricules doit contenir des matricules distincts séparés par des virgules.");
+    }
+    cibles = liste.map((m) => {
+      const agent = trouverAgent(registre, m);
+      if (!agent) arreter(`Matricule ${m} inconnu.`);
+      return { ...agent, admin: false };
+    });
+  } else if (admin) {
     if (trouverAgent(registre, admin)) arreter(`${admin} est un agent : un administrateur doit avoir un matricule distinct.`);
     const nom = argument("--nom") ?? trouverAdmin(registre, admin)?.nom;
     if (!nom) arreter('Préciser le nom de l\'administrateur : --nom "Prénom Nom".');
