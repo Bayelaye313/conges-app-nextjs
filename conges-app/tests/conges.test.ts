@@ -276,14 +276,27 @@ describe("verifierDemande", () => {
     expect(verifierDemande(registre(a), a, periodes(2027, 9, 11, "debut"), AUJOURDHUI).ok).toBe(true);
   });
 
+  it("autorise une nouvelle demande dès l'anniversaire des 12 mois après le retour", () => {
+    const a = agent({
+      jours_pris_reprise: 0,
+      historique: [{ debut: "2026-03-01", fin: "2026-03-15", jours: 12 }]
+    });
+    const avantAnniversaire = periodes(2027, 3, 11, "debut");
+    const anniversaire = periodes(2027, 3, 11, "fin");
+    expect(anniversaire[0].debut).toBe("2027-03-16");
+    expect(premiereDatePossible(a, AUJOURDHUI)).toBe("2027-03-16");
+    expect(verifierDemande(registre(a), a, avantAnniversaire, AUJOURDHUI).ok).toBe(false);
+    expect(verifierDemande(registre(a), a, anniversaire, AUJOURDHUI).ok).toBe(true);
+  });
+
   it("délai de 12 mois aussi avec un vœu déjà prévu plus tard", () => {
     const a = agent({ jours_pris_reprise: 0 });
     a.demandes.push(demande(periodes(2027, 12, 11, "debut")));
     expect(verifierDemande(registre(a), a, periodes(2027, 3, 11, "debut"), AUJOURDHUI).ok).toBe(false);
   });
 
-  it("plafond : 20 AV absents dans une quinzaine → refus, même si un seul jour se chevauche", () => {
-    const absents = Array.from({ length: 20 }, (_, i) =>
+  it("plafond : 18 AV absents dans une quinzaine → refus, même si un seul jour se chevauche", () => {
+    const absents = Array.from({ length: 18 }, (_, i) =>
       agent({ matricule: `A${i}`, historique: [{ debut: "2027-03-15", fin: "2027-03-15", jours: 1 }] })
     );
     const demandeur = agent({ matricule: "9999" });
@@ -294,7 +307,7 @@ describe("verifierDemande", () => {
   });
 
   it("plafond : les vœux en attente comptent, les supprimés non", () => {
-    const enAttente = Array.from({ length: 20 }, (_, i) =>
+    const enAttente = Array.from({ length: 18 }, (_, i) =>
       agent({ matricule: `B${i}`, demandes: [demande(periodes(2027, 3, 11, "debut"))] })
     );
     const demandeur = agent({ matricule: "9999" });
@@ -323,7 +336,7 @@ describe("occupation et synthèse admin", () => {
     const r = registre(agent({ historique: [{ debut: "2027-03-10", fin: "2027-03-20", jours: 9 }] }));
     const occ = occupationParQuinzaine(r, "AV", "2027-03-01", 3);
     expect(occ.map((q) => q.absents)).toEqual([1, 1, 0]);
-    expect(occ[0].plafond).toBe(20);
+    expect(occ[0].plafond).toBe(18);
   });
 
   it("liste les agents sans vœu et les KPIs", () => {

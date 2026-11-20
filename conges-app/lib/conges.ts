@@ -12,7 +12,7 @@ export const CONFIG = {
   ANCIENNETE_MIN_MOIS: 12, // premier congé possible à la date anniversaire d'entrée
   JOURS_ACQUIS_PAR_MOIS: 2,
   /** Agents absents au maximum par quinzaine, par rôle (null = pas de plafond). */
-  PLAFONDS: { AV: 20, CEV: 3, CS: null } as Record<Role, number | null>
+  PLAFONDS: { AV: 18, CEV: 3, CS: null } as Record<Role, number | null>
 } as const;
 
 export const LIBELLES_ROLE: Record<Role, string> = {
