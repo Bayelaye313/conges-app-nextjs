@@ -19,12 +19,14 @@ export async function POST(req: NextRequest) {
 
   const code = genererCodeProvisoire();
   const auth = { hash: await hacherCode(code), doit_changer: true, modifie_le: new Date().toISOString() };
-  const trouve = await modifierDocument<Registre, boolean>((registre) => {
+  const resultat = await modifierDocument<Registre, "ok" | "inconnu" | "desactive">((registre) => {
     const agent = trouverAgent(registre, corps.data.matricule);
-    if (!agent) return { ecrire: false, resultat: false };
+    if (!agent) return { ecrire: false, resultat: "inconnu" };
+    if (agent.desactive) return { ecrire: false, resultat: "desactive" };
     agent.auth = auth;
-    return { ecrire: true, resultat: true };
+    return { ecrire: true, resultat: "ok" };
   });
-  if (!trouve) return erreur(404, "Matricule inconnu.");
+  if (resultat === "inconnu") return erreur(404, "Matricule inconnu.");
+  if (resultat === "desactive") return erreur(422, "Ce compte agent est désactivé.");
   return NextResponse.json({ ok: true, code });
 }

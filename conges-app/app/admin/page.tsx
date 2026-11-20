@@ -62,6 +62,7 @@ interface LigneAgent {
   nom: string;
   fonction: string;
   role: Role;
+  desactive: boolean;
   jours_pris_reprise: number;
   date_embauche: string;
   date_anniversaire: string;
@@ -594,13 +595,15 @@ export default function AdminPage() {
                         <div className="flex items-center gap-2">
                           <span className={cx(
                             "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset",
-                            a.code_change ? "bg-emerald-50 text-emerald-700 ring-emerald-600/20" : a.a_code ? "bg-amber-50 text-amber-700 ring-amber-600/20" : "bg-slate-100 text-slate-600 ring-slate-500/20"
+                            a.desactive ? "bg-rose-50 text-rose-700 ring-rose-600/20" : a.code_change ? "bg-emerald-50 text-emerald-700 ring-emerald-600/20" : a.a_code ? "bg-amber-50 text-amber-700 ring-amber-600/20" : "bg-slate-100 text-slate-600 ring-slate-500/20"
                           )}>
-                            {a.code_change ? "Connecté" : a.a_code ? "Code provisoire" : "Aucun code"}
+                            {a.desactive ? "Accès désactivé" : a.code_change ? "Connecté" : a.a_code ? "Code provisoire" : "Aucun code"}
                           </span>
-                          <Bouton variante="fantome" taille="sm" onClick={() => nouveauCode(a)} title="Générer un nouveau code">
-                            <KeyRound className="h-4 w-4" aria-hidden />
-                          </Bouton>
+                          {!a.desactive && (
+                            <Bouton variante="fantome" taille="sm" onClick={() => nouveauCode(a)} title="Générer un nouveau code">
+                              <KeyRound className="h-4 w-4" aria-hidden />
+                            </Bouton>
+                          )}
                         </div>
                       </td>
                       {onglet === "agents" && (

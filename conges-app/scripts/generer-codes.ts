@@ -55,6 +55,7 @@ async function main() {
     cibles = liste.map((m) => {
       const agent = trouverAgent(registre, m);
       if (!agent) arreter(`Matricule ${m} inconnu.`);
+      if (agent.desactive) arreter(`Le compte ${m} est désactivé.`);
       return { ...agent, admin: false };
     });
   } else if (admin) {
@@ -65,14 +66,15 @@ async function main() {
   } else if (matricule) {
     const agent = trouverAgent(registre, matricule);
     if (!agent) arreter(`Matricule ${matricule} inconnu.`);
+    if (agent.desactive) arreter(`Le compte ${matricule} est désactivé.`);
     cibles = [{ ...agent, admin: false }];
   } else if (roles) {
     cibles = Object.values(registre.agents)
-      .filter((a) => roles.includes(a.role))
+      .filter((a) => !a.desactive && roles.includes(a.role))
       .map((a) => ({ ...a, admin: false }));
   } else {
     cibles = Object.values(registre.agents)
-      .filter((a) => drapeau("--tous") || !a.auth)
+      .filter((a) => !a.desactive && (drapeau("--tous") || !a.auth))
       .map((a) => ({ ...a, admin: false }));
   }
   if (cibles.length === 0) {

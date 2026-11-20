@@ -59,6 +59,8 @@ export interface Agent {
   date_embauche: string;
   /** Cumul des jours pris selon le tableau RH, congés déjà planifiés inclus. */
   jours_pris_reprise: number;
+  /** Compte désactivé : accès bloqué, historique conservé. */
+  desactive?: boolean;
   /** Fin de congé connue sans période détaillée. */
   dernier_conge_fin?: string | null;
   /** Congés repris de l'ancien suivi (déjà inclus dans jours_pris_reprise). */

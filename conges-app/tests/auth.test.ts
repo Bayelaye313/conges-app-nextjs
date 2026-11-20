@@ -9,6 +9,7 @@ import {
   lireJetonSession,
   noterEchec,
   tentativesBloquees,
+  trouverCompte,
   validerNouveauCode,
   verifierCode,
   type Compte
@@ -71,6 +72,30 @@ describe("session", () => {
     expect(lireJetonSession(undefined)).toBeNull();
     expect(lireJetonSession("abc")).toBeNull();
     expect(lireJetonSession("a.b.c")).toBeNull();
+  });
+
+  it("ne résout pas le compte d'un agent désactivé", () => {
+    const registre = {
+      version: 2 as const,
+      date_reprise: "2026-10-31",
+      agents: {
+        "0062": {
+          matricule: "0062",
+          prenom: "Michel",
+          nom: "COLY",
+          fonction: "CHEF DE SECTEUR",
+          role: "CS" as const,
+          date_embauche: "2023-10-09",
+          jours_pris_reprise: 41,
+          desactive: true,
+          historique: [],
+          demandes: [],
+          auth: { hash: "hash", doit_changer: false, modifie_le: "2026-11-20T00:00:00.000Z" }
+        }
+      },
+      admins: {}
+    };
+    expect(trouverCompte(registre, "0062")).toBeNull();
   });
 });
 

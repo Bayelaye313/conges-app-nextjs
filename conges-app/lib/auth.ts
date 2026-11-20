@@ -15,7 +15,7 @@ export function trouverCompte(registre: Parameters<typeof trouverAgent>[0], matr
   const admin = trouverAdmin(registre, matricule);
   if (admin) return { type: "admin", matricule, auth: admin.auth, admin };
   const agent = trouverAgent(registre, matricule);
-  if (agent) return { type: "agent", matricule, auth: agent.auth, agent };
+  if (agent && !agent.desactive) return { type: "agent", matricule, auth: agent.auth, agent };
   return null;
 }
 

@@ -86,6 +86,7 @@ export interface LigneAgent {
   nom: string;
   fonction: string;
   role: Role;
+  desactive: boolean;
   jours_pris_reprise: number;
   date_embauche: string;
   date_anniversaire: string;
@@ -153,6 +154,7 @@ export function construireSynthese(registre: Registre, aujourdHui: Date): Synthe
         nom: a.nom,
         fonction: a.fonction,
         role: a.role,
+        desactive: !!a.desactive,
         jours_pris_reprise: a.jours_pris_reprise,
         date_embauche: a.date_embauche,
         date_anniversaire: dateAnniversaire(a),
