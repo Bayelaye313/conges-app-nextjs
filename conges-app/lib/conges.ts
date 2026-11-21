@@ -11,7 +11,7 @@ export const CONFIG = {
   DELAI_MOIS: 12, // entre la fin d'un congé et le début du suivant
   ANCIENNETE_MIN_MOIS: 12, // premier congé possible à la date anniversaire d'entrée
   JOURS_ACQUIS_PAR_MOIS: 2,
-  /** Agents absents au maximum par quinzaine, par rôle (null = pas de plafond). */
+  /** Départs au maximum par quinzaine, par rôle (null = pas de plafond). */
   PLAFONDS: { AV: 18, CEV: 3, CS: null } as Record<Role, number | null>
 } as const;
 
@@ -262,12 +262,14 @@ function chevauche(a: { debut: string; fin: string }, b: { debut: string; fin: s
   return !(a.fin < b.debut || a.debut > b.fin);
 }
 
-/** Matricules des agents d'un rôle absents au moins un jour de la quinzaine. */
-export function absentsQuinzaine(registre: Registre, role: Role, q: Quinzaine, sauf?: string): Set<string> {
+/** Matricules des agents d'un rôle dont un congé commence dans la quinzaine. */
+export function departsQuinzaine(registre: Registre, role: Role, q: Quinzaine, sauf?: string): Set<string> {
   const res = new Set<string>();
   for (const a of Object.values(registre.agents)) {
     if (a.role !== role || a.matricule === sauf) continue;
-    if (congesDeLAgent(a).some((c) => c.periodes.some((p) => chevauche(p, q)))) res.add(a.matricule);
+    if (congesDeLAgent(a).some((c) => c.periodes.some((p) => q.debut <= p.debut && p.debut <= q.fin))) {
+      res.add(a.matricule);
+    }
   }
   return res;
 }
@@ -277,7 +279,7 @@ export interface OccupationQuinzaine {
   libelle: string;
   debut: string;
   fin: string;
-  absents: number;
+  departs: number;
   plafond: number | null;
 }
 
@@ -295,7 +297,7 @@ export function occupationParQuinzaine(
       libelle: libelleQuinzaine(q),
       debut: q.debut,
       fin: q.fin,
-      absents: absentsQuinzaine(registre, role, q).size,
+      departs: departsQuinzaine(registre, role, q).size,
       plafond: CONFIG.PLAFONDS[role]
     });
   }
@@ -472,11 +474,11 @@ export function verifierPlafond(registre: Registre, agent: Agent, periodes: Peri
     for (const q of quinzainesEntre(p.debut, p.fin)) {
       if (vues.has(q.cle)) continue;
       vues.add(q.cle);
-      const absents = absentsQuinzaine(registre, agent.role, q, agent.matricule).size;
-      if (absents + 1 > plafond) {
+      const departs = departsQuinzaine(registre, agent.role, q, agent.matricule).size;
+      if (departs + 1 > plafond) {
         return {
           ok: false,
-          message: `⛔ La quinzaine du ${libelleQuinzaine(q)} est complète pour les ${LIBELLES_ROLE[agent.role].toLowerCase()} (${absents}/${plafond}). Consultez les disponibilités pour choisir une autre période.`
+          message: `⛔ Le plafond de départs est atteint pour la quinzaine du ${libelleQuinzaine(q)} pour les ${LIBELLES_ROLE[agent.role].toLowerCase()} (${departs}/${plafond}). Consultez les disponibilités pour choisir une autre période.`
         };
       }
     }

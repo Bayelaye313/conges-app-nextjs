@@ -17,7 +17,7 @@ interface Quinzaine {
   cle: string;
   libelle: string;
   debut: string;
-  absents: number;
+  departs: number;
   plafond: number | null;
 }
 
@@ -53,7 +53,7 @@ export default function PlanningPage() {
             donnees &&
             (donnees.plafond === null
               ? `Pas de plafond pour les ${donnees.libelleRole.toLowerCase()} : seules vos règles individuelles (solde, délai de 12 mois) s'appliquent.`
-              : `Au plus ${donnees.plafond} ${donnees.libelleRole.toLowerCase()} en congé par quinzaine. Un congé occupe une place dans chaque quinzaine qu'il touche ; les vœux en attente comptent déjà.`)
+              : `Au plus ${donnees.plafond} départs de ${donnees.libelleRole.toLowerCase()} par quinzaine. Les demandes en attente et validées sont comptées selon leur date de départ.`)
           }
         />
 
@@ -71,8 +71,8 @@ export default function PlanningPage() {
             )}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {donnees.quinzaines.map((q) => {
-                const restant = q.plafond === null ? null : Math.max(0, q.plafond - q.absents);
-                const ratio = q.plafond ? q.absents / q.plafond : 0;
+                const restant = q.plafond === null ? null : Math.max(0, q.plafond - q.departs);
+                const ratio = q.plafond ? q.departs / q.plafond : 0;
                 const ton = restant === 0 ? TONS.complet : ratio >= 0.75 ? TONS.presque : TONS.libre;
                 const [annee, mois, partie] = q.cle.split("-");
                 return (
@@ -80,7 +80,7 @@ export default function PlanningPage() {
                     <div className="flex items-start justify-between gap-3">
                       <span className="text-[15px] font-bold capitalize text-slate-900">{q.libelle}</span>
                       <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${ton.badge}`}>
-                        {restant === null ? `${q.absents} absents` : restant === 0 ? "Complet" : `${restant} place${restant > 1 ? "s" : ""}`}
+                        {restant === null ? `${q.departs} départs` : restant === 0 ? "Complet" : `${restant} place${restant > 1 ? "s" : ""}`}
                       </span>
                     </div>
                     {q.plafond !== null && (
@@ -90,7 +90,7 @@ export default function PlanningPage() {
                     )}
                     <div className="mt-2.5 flex flex-1 items-end justify-between gap-2 text-sm">
                       <span className="tabular-nums text-slate-500">
-                        {q.plafond === null ? "Sans plafond" : `${q.absents} / ${q.plafond} absents`}
+                        {q.plafond === null ? "Sans plafond" : `${q.departs} / ${q.plafond} départs`}
                       </span>
                       {restant !== 0 && (
                         <Link
