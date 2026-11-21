@@ -2,8 +2,11 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { beforeAll, describe, expect, it } from "vitest";
+import { NextRequest } from "next/server";
 import {
+  COOKIE_SESSION,
   creerJetonSession,
+  exigerSession,
   genererCodeProvisoire,
   hacherCode,
   lireJetonSession,
@@ -18,6 +21,8 @@ import { lireDocument, modifierDocument, ecrireDocumentForce } from "../lib/stor
 
 beforeAll(() => {
   process.env.CONGES_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "conges-test-"));
+  process.env.CONGES_STOCKAGE = "fichier";
+  process.env.SESSION_SECRET = "test-secret-for-session-authentication";
 });
 
 const compte = {
@@ -54,6 +59,33 @@ describe("codes d'accès", () => {
 });
 
 describe("session", () => {
+  it("autorise un agent à utiliser son code provisoire sans le remplacer", async () => {
+    const agent = {
+      matricule: "0779",
+      prenom: "Test",
+      nom: "Agent",
+      fonction: "AGENT DE VENTE",
+      role: "AV" as const,
+      date_embauche: "2024-01-08",
+      jours_pris_reprise: 0,
+      historique: [],
+      demandes: [],
+      auth: { hash: "hash", doit_changer: true, modifie_le: "2026-11-20T00:00:00.000Z" }
+    };
+    await ecrireDocumentForce({
+      version: 2 as const,
+      date_reprise: "2026-10-31",
+      agents: { "0779": agent },
+      admins: {}
+    });
+    const compte = { type: "agent" as const, matricule: agent.matricule, auth: agent.auth, agent };
+    const req = new NextRequest("https://conges.test/api/moi", {
+      headers: { cookie: `${COOKIE_SESSION}=${creerJetonSession(compte)}` }
+    });
+
+    await expect(exigerSession(req)).resolves.toMatchObject({ ok: true });
+  });
+
   it("relit un jeton valide avec son type de compte", () => {
     const contenu = lireJetonSession(creerJetonSession(compte));
     expect(contenu?.m).toBe("0291");

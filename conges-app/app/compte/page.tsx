@@ -45,10 +45,10 @@ export default function ComptePage() {
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
             <ShieldCheck className="h-6 w-6" aria-hidden />
           </span>
-          <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">Choisissez votre code personnel</h1>
+          <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">Modifier mon code d&apos;accès</h1>
           <p className="mt-2 text-[15px] leading-relaxed text-slate-600">
-            Remplacez le code provisoire par un code que vous seul connaissez (8 caractères minimum).
-            Ne le communiquez à personne.
+            Cette démarche est facultative. Vous pouvez remplacer le code reçu par un code de votre choix
+            (8 caractères minimum). Gardez-le confidentiel.
           </p>
 
           <form onSubmit={changerCode} className="mt-5 space-y-4">

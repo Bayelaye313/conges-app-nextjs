@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   }
 
   await reinitialiserEchecs(matricule);
-  const res = NextResponse.json({ ok: true, doitChangerCode: compte.auth.doit_changer, type: compte.type });
+  const res = NextResponse.json({ ok: true, type: compte.type });
   poserCookieSession(res, compte);
   return res;
 }

@@ -1,6 +1,6 @@
 /**
  * Génère des codes d'accès provisoires, à remettre en main propre.
- * Chaque titulaire doit choisir son propre code dès sa première connexion.
+ * Chaque titulaire peut le remplacer s'il le souhaite, sans obligation.
  *
  *   npm run codes:generer                                 → agents qui n'ont encore aucun code
  *   npm run codes:generer -- --matricule 0291             → réinitialise un agent
@@ -11,7 +11,7 @@
  *
  * --role AV|CEV|CS (liste séparée par des virgules) réinitialise tous les agents de ces rôles.
  * --code X impose un code provisoire commun au lieu d'un code aléatoire par
- * personne ; chacun reste obligé de le remplacer à sa première connexion.
+ * personne ; le remplacer reste facultatif pour chaque titulaire.
  *
  * Une fois l'application en ligne, l'admin peut aussi générer un code depuis
  * son tableau de bord (onglet Agents → « nouveau code »).

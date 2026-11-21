@@ -75,7 +75,7 @@ interface LigneAgent {
   voeux_actifs: number;
   a_soumis: boolean;
   a_code: boolean;
-  code_change: boolean;
+  code_personnalise: boolean;
 }
 
 interface Occupation {
@@ -101,7 +101,7 @@ interface Synthese {
     jours_demandes: number;
     agents_moins_un_an: number;
     agents_solde_insuffisant_aujourdhui: number;
-    agents_connectes: number;
+    agents_codes_personnalises: number;
     par_role: Record<Role, { agents: number; ayant_soumis: number }>;
   };
   agents: LigneAgent[];
@@ -193,7 +193,7 @@ export default function AdminPage() {
   }
 
   async function nouveauCode(a: LigneAgent) {
-    const avertissement = a.code_change
+    const avertissement = a.code_personnalise
       ? `${a.prenom} ${a.nom} a déjà choisi son code. Le remplacer par un code provisoire ? Ses sessions seront fermées.`
       : `Générer un code provisoire pour ${a.prenom} ${a.nom} ?`;
     if (!window.confirm(avertissement)) return;
@@ -353,7 +353,7 @@ export default function AdminPage() {
         <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
           {[
             { titre: "Jours demandés", valeur: kpis.jours_demandes, detail: "vœux actifs" },
-            { titre: "Codes choisis", valeur: `${kpis.agents_connectes} / ${kpis.agents}`, detail: "déjà connectés" },
+            { titre: "Codes personnalisés", valeur: `${kpis.agents_codes_personnalises} / ${kpis.agents}`, detail: "remplacés volontairement" },
             { titre: "Moins d'un an", valeur: kpis.agents_moins_un_an, detail: "départ à l'anniversaire" },
             { titre: `Solde < ${s.minJours} j`, valeur: kpis.agents_solde_insuffisant_aujourdhui, detail: "aujourd'hui" },
             ...(["AV", "CEV", "CS"] as Role[]).map((r) => ({
@@ -377,7 +377,7 @@ export default function AdminPage() {
               <span className="ml-1 select-all rounded-lg bg-white px-3 py-1 font-mono text-lg font-semibold tracking-wider text-brand-700 ring-1 ring-brand-200">{codeAffiche.code}</span>
             </p>
             <p className="mt-2 text-sm">
-              Notez-le maintenant : il ne sera plus affiché. L&apos;agent devra choisir son propre code à la première connexion.
+              Notez-le maintenant : il ne sera plus affiché. L&apos;agent peut l&apos;utiliser directement ou le remplacer plus tard.
             </p>
             <Bouton variante="secondaire" taille="sm" className="mt-3" onClick={() => setCodeAffiche(null)}>J&apos;ai transmis le code</Bouton>
           </Alerte>
@@ -595,9 +595,9 @@ export default function AdminPage() {
                         <div className="flex items-center gap-2">
                           <span className={cx(
                             "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset",
-                            a.desactive ? "bg-rose-50 text-rose-700 ring-rose-600/20" : a.code_change ? "bg-emerald-50 text-emerald-700 ring-emerald-600/20" : a.a_code ? "bg-amber-50 text-amber-700 ring-amber-600/20" : "bg-slate-100 text-slate-600 ring-slate-500/20"
+                            a.desactive ? "bg-rose-50 text-rose-700 ring-rose-600/20" : a.code_personnalise ? "bg-emerald-50 text-emerald-700 ring-emerald-600/20" : a.a_code ? "bg-amber-50 text-amber-700 ring-amber-600/20" : "bg-slate-100 text-slate-600 ring-slate-500/20"
                           )}>
-                            {a.desactive ? "Accès désactivé" : a.code_change ? "Connecté" : a.a_code ? "Code provisoire" : "Aucun code"}
+                            {a.desactive ? "Accès désactivé" : a.code_personnalise ? "Code personnalisé" : a.a_code ? "Code provisoire" : "Aucun code"}
                           </span>
                           {!a.desactive && (
                             <Bouton variante="fantome" taille="sm" onClick={() => nouveauCode(a)} title="Générer un nouveau code">

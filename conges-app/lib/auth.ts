@@ -143,7 +143,7 @@ export function effacerCookieSession(res: NextResponse): void {
   res.cookies.set(COOKIE_SESSION, "", { httpOnly: true, path: "/", maxAge: 0 });
 }
 
-type Refus = { ok: false; status: 401 | 403; message: string; doitChangerCode?: boolean };
+type Refus = { ok: false; status: 401 | 403; message: string };
 export type ResultatSession<C extends Compte = Compte> = ({ ok: true } & { compte: C }) | Refus;
 
 /**
@@ -151,19 +151,13 @@ export type ResultatSession<C extends Compte = Compte> = ({ ok: true } & { compt
  * d'identité côté serveur : on n'accepte jamais un matricule venant du
  * corps de la requête ou de l'URL.
  */
-export async function exigerSession(
-  req: NextRequest,
-  options: { autoriserCodeProvisoire?: boolean } = {}
-): Promise<ResultatSession> {
+export async function exigerSession(req: NextRequest): Promise<ResultatSession> {
   const expiree: Refus = { ok: false, status: 401, message: "Session expirée. Reconnectez-vous." };
   const contenu = lireJetonSession(req.cookies.get(COOKIE_SESSION)?.value);
   if (!contenu) return expiree;
 
   const compte = trouverCompte(await chargerRegistre(), contenu.m);
   if (!compte?.auth || compte.type !== contenu.r || compte.auth.modifie_le !== contenu.v) return expiree;
-  if (compte.auth.doit_changer && !options.autoriserCodeProvisoire) {
-    return { ok: false, status: 403, message: "Vous devez d'abord choisir votre code personnel.", doitChangerCode: true };
-  }
   return { ok: true, compte };
 }
 

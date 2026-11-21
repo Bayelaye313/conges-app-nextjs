@@ -5,9 +5,8 @@ type Routeur = { replace: (href: string) => void };
 export class RedirectionEnCours extends Error {}
 
 /**
- * fetch JSON côté navigateur. Session absente → page de connexion ; code
- * provisoire non encore changé → page /compte. Lève RedirectionEnCours dans
- * ces deux cas, et Error (message lisible) en cas de panne réseau.
+ * fetch JSON côté navigateur. Une session absente renvoie à la connexion.
+ * Lève RedirectionEnCours dans ce cas, et Error (message lisible) en cas de panne réseau.
  */
 export async function appelApi<T = Record<string, unknown>>(
   routeur: Routeur,
@@ -28,10 +27,6 @@ export async function appelApi<T = Record<string, unknown>>(
   const data = await res.json().catch(() => ({ ok: false, message: "Réponse inattendue du serveur." }));
   if (res.status === 401) {
     routeur.replace("/");
-    throw new RedirectionEnCours();
-  }
-  if (res.status === 403 && data.doitChangerCode) {
-    routeur.replace("/compte");
     throw new RedirectionEnCours();
   }
   return { status: res.status, data };

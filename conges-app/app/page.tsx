@@ -35,7 +35,7 @@ export default function LoginPage() {
         setChargement(false);
         return;
       }
-      router.push(data.doitChangerCode ? "/compte" : data.type === "admin" ? "/admin" : "/dashboard");
+      router.push(data.type === "admin" ? "/admin" : "/dashboard");
     } catch {
       setErreur("Impossible de contacter le registre. Réessayez.");
       setChargement(false);

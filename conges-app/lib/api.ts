@@ -9,7 +9,7 @@ export function erreur(status: number, message: string, extra: Record<string, un
 }
 
 export function refusSession(session: Exclude<ResultatSession, { ok: true }>) {
-  return erreur(session.status, session.message, session.doitChangerCode ? { doitChangerCode: true } : {});
+  return erreur(session.status, session.message);
 }
 
 /**

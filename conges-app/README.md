@@ -47,7 +47,7 @@ npm run codes:generer                                                         # 
 
 La génération charge aussi `conges-app/.env.local` si le fichier existe, afin d’utiliser le stockage configuré (`fichier` ou `postgres`).
 Les codes provisoires sont écrits dans `data/import/codes-provisoires-*.csv` : les distribuer,
-puis **supprimer le fichier**. Chaque titulaire choisit son code à la première connexion.
+puis **supprimer le fichier**. Chaque titulaire peut garder ce code ou le remplacer quand il le souhaite.
 
 ## Déploiement sur Netlify
 
@@ -84,8 +84,8 @@ instances. Le stockage fichier reste disponible pour le développement ou un ser
 
 - Session par cookie signé (HMAC, `httpOnly`, `Secure`, 8 h) ; le serveur n'accepte jamais un
   matricule envoyé par le navigateur. Comptes agent et admin strictement cloisonnés.
-- Codes hachés (scrypt), code provisoire à changer à la 1ʳᵉ connexion, changement de code =
-  déconnexion des autres sessions. 5 échecs → blocage 15 min (compteur persistant).
+- Codes hachés (scrypt), remplacement du code facultatif ; un remplacement déconnecte les autres
+  sessions. 5 échecs → blocage 15 min (compteur persistant).
 - Entrées validées (zod), POST en JSON uniquement, en-têtes CSP/HSTS, exports CSV protégés
   contre l'injection de formules Excel, sauvegarde JSON sans les empreintes de codes.
 

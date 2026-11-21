@@ -46,6 +46,7 @@ export interface Demande {
 
 export interface AuthCompte {
   hash: string;
+  /** Marque un code provisoire non encore remplacé ; son remplacement reste facultatif. */
   doit_changer: boolean;
   modifie_le: string; // ISO — sert aussi à invalider les sessions existantes
 }

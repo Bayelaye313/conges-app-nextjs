@@ -100,7 +100,7 @@ export interface LigneAgent {
   voeux_actifs: number;
   a_soumis: boolean;
   a_code: boolean;
-  code_change: boolean;
+  code_personnalise: boolean;
 }
 
 export interface LigneDemande extends Demande {
@@ -123,7 +123,7 @@ export interface Synthese {
     jours_demandes: number;
     agents_moins_un_an: number;
     agents_solde_insuffisant_aujourdhui: number;
-    agents_connectes: number;
+    agents_codes_personnalises: number;
     par_role: Record<Role, { agents: number; ayant_soumis: number }>;
   };
   agents: LigneAgent[];
@@ -170,7 +170,7 @@ export function construireSynthese(registre: Registre, aujourdHui: Date): Synthe
         voeux_actifs: actifs.length,
         a_soumis: actifs.length > 0,
         a_code: !!a.auth,
-        code_change: !!a.auth && !a.auth.doit_changer
+        code_personnalise: !!a.auth && !a.auth.doit_changer
       };
     })
     .sort((x, y) => x.matricule.localeCompare(y.matricule));
@@ -200,7 +200,7 @@ export function construireSynthese(registre: Registre, aujourdHui: Date): Synthe
       jours_demandes: actives.reduce((s, d) => s + d.jours, 0),
       agents_moins_un_an: lignesAgents.filter((l) => l.date_anniversaire > aujourdHuiStr).length,
       agents_solde_insuffisant_aujourdhui: lignesAgents.filter((l) => l.solde < CONFIG.MIN_DAYS).length,
-      agents_connectes: lignesAgents.filter((l) => l.code_change).length,
+      agents_codes_personnalises: lignesAgents.filter((l) => l.code_personnalise).length,
       par_role: parRole
     },
     agents: lignesAgents,
@@ -261,12 +261,12 @@ export function exportAgents(registre: Registre, aujourdHui: Date): string {
     ["Matricule", "Prénom", "Nom", "Fonction", "Rôle", "Date d'embauche", "Date anniversaire",
       "Jours acquis", "Jours pris (dont vœux)", "Solde aujourd'hui", "Retour du dernier congé",
       "Premier départ possible", "Solde à cette date", `Solde ≥ ${CONFIG.MIN_DAYS} j à partir du`,
-      "Vœux actifs", "A soumis", "Code personnel choisi"],
+      "Vœux actifs", "A soumis", "Code personnalisé"],
     synthese.agents.map((l) => [
       l.matricule, l.prenom, l.nom, l.fonction, l.role, fr(l.date_embauche), fr(l.date_anniversaire),
       joursAcquis(l.date_embauche, aujourdHui), joursPris(parMatricule[l.matricule]), l.solde,
       fr(l.dernier_conge_fin && dateToStr(ajouterJours(strToDate(l.dernier_conge_fin), 1))), fr(l.premiere_date_possible), l.solde_a_cette_date, fr(l.date_solde_suffisant),
-      l.voeux_actifs, l.a_soumis ? "Oui" : "Non", l.code_change ? "Oui" : "Non"
+      l.voeux_actifs, l.a_soumis ? "Oui" : "Non", l.code_personnalise ? "Oui" : "Non"
     ])
   );
 }

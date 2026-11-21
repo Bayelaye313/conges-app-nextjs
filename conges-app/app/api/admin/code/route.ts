@@ -10,6 +10,7 @@ const Corps = z.object({ matricule: z.string().min(1).max(20) });
 /**
  * Nouveau code provisoire pour un agent (code oublié, première distribution).
  * Le code n'est affiché qu'une fois, à l'admin, qui le transmet à l'agent.
+ * L'agent peut l'utiliser tel quel ou le remplacer à sa convenance.
  */
 export async function POST(req: NextRequest) {
   const session = await exigerAdmin(req);

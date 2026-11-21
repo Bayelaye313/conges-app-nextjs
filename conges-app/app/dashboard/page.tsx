@@ -9,6 +9,7 @@ import {
   CalendarPlus,
   ChevronDown,
   History,
+  KeyRound,
   Plane,
   Plus,
   RefreshCw,
@@ -151,6 +152,10 @@ export default function DashboardPage() {
               <Link href="/recuperation" className={classesBouton("secondaire", "lg")}>
                 <RefreshCw className="h-5 w-5" aria-hidden />
                 Demander une récupération
+              </Link>
+              <Link href="/compte" className={classesBouton("secondaire", "lg")}>
+                <KeyRound className="h-5 w-5" aria-hidden />
+                Modifier mon code
               </Link>
             </div>
           }

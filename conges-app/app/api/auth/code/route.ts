@@ -21,9 +21,9 @@ const Corps = z.object({
   nouveau: z.string().min(1).max(128)
 });
 
-/** Changement du code d'accès (obligatoire à la première connexion). */
+/** Changement facultatif du code d'accès. */
 export async function POST(req: NextRequest) {
-  const session = await exigerSession(req, { autoriserCodeProvisoire: true });
+  const session = await exigerSession(req);
   if (!session.ok) return refusSession(session);
 
   const corps = await lireCorps(req, Corps);
