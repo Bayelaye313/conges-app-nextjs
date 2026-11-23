@@ -81,7 +81,8 @@ interface LigneAgent {
 interface Occupation {
   cle: string;
   libelle: string;
-  departs: number;
+  pic: number;
+  picLe: string | null;
   plafond: number | null;
 }
 
@@ -635,13 +636,14 @@ export default function AdminPage() {
                       <td className={`${cellule} font-semibold capitalize text-slate-900`}>{q.libelle}</td>
                       {(["AV", "CEV", "CS"] as Role[]).map((r) => {
                         const o = s.occupation[r][i];
-                        const plein = o.plafond !== null && o.departs >= o.plafond;
-                        const ratio = o.plafond ? o.departs / o.plafond : 0;
+                        const plein = o.plafond !== null && o.pic >= o.plafond;
+                        const ratio = o.plafond ? o.pic / o.plafond : 0;
                         return (
                           <td key={r} className={cellule}>
                             <span className={plein ? "font-bold text-rose-600" : ratio >= 0.75 ? "font-semibold text-amber-700" : "text-slate-900"}>
-                              {o.departs}{o.plafond !== null ? ` / ${o.plafond}` : ""}
+                              {o.pic}{o.plafond !== null ? ` / ${o.plafond}` : ""}
                             </span>
+                            {o.picLe && <div className="text-xs text-slate-500">Pic le {formatFr(o.picLe)}</div>}
                             {o.plafond !== null && (
                               <div className="mt-1 h-1.5 w-28 overflow-hidden rounded-full bg-slate-100">
                                 <div className={`h-full rounded-full ${tonOccupation(plein, ratio)}`} style={{ width: `${Math.min(ratio, 1) * 100}%` }} />

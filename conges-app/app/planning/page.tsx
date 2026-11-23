@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Alerte, BarreNavigation, Carte, Chargement, EnTete } from "@/components/ui";
-import { appelApi, RedirectionEnCours } from "@/lib/client";
+import { appelApi, formatFr, RedirectionEnCours } from "@/lib/client";
 
 const TONS = {
   libre: { badge: "bg-emerald-50 text-emerald-700 ring-emerald-600/20", barre: "bg-emerald-500" },
@@ -17,7 +17,9 @@ interface Quinzaine {
   cle: string;
   libelle: string;
   debut: string;
-  departs: number;
+  pic: number;
+  picLe: string | null;
+  parJour: { date: string; absents: number }[];
   plafond: number | null;
 }
 
@@ -53,7 +55,7 @@ export default function PlanningPage() {
             donnees &&
             (donnees.plafond === null
               ? `Pas de plafond pour les ${donnees.libelleRole.toLowerCase()} : seules vos règles individuelles (solde, délai de 12 mois) s'appliquent.`
-              : `Au plus ${donnees.plafond} départs de ${donnees.libelleRole.toLowerCase()} par quinzaine. Les demandes en attente et validées sont comptées selon leur date de départ.`)
+              : `Au plus ${donnees.plafond} ${donnees.libelleRole.toLowerCase()} simultanément en congé chaque jour. Les demandes en attente et validées sont comptées pour chaque journée d'absence.`)
           }
         />
 
@@ -71,8 +73,10 @@ export default function PlanningPage() {
             )}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {donnees.quinzaines.map((q) => {
-                const restant = q.plafond === null ? null : Math.max(0, q.plafond - q.departs);
-                const ratio = q.plafond ? q.departs / q.plafond : 0;
+                const restant = q.plafond === null ? null : Math.max(0, q.plafond - q.pic);
+                const depassement = q.plafond !== null && q.pic > q.plafond ? q.pic - q.plafond : 0;
+                const joursDepasses = q.plafond === null ? [] : q.parJour.filter((j) => j.absents > q.plafond!);
+                const ratio = q.plafond ? q.pic / q.plafond : 0;
                 const ton = restant === 0 ? TONS.complet : ratio >= 0.75 ? TONS.presque : TONS.libre;
                 const [annee, mois, partie] = q.cle.split("-");
                 return (
@@ -80,7 +84,13 @@ export default function PlanningPage() {
                     <div className="flex items-start justify-between gap-3">
                       <span className="text-[15px] font-bold capitalize text-slate-900">{q.libelle}</span>
                       <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${ton.badge}`}>
-                        {restant === null ? `${q.departs} départs` : restant === 0 ? "Complet" : `${restant} place${restant > 1 ? "s" : ""}`}
+                        {restant === null
+                          ? `${q.pic} absents au pic`
+                          : depassement > 0
+                            ? `Dépassement de ${depassement}`
+                            : restant === 0
+                              ? "Complet"
+                              : `${restant} place${restant > 1 ? "s" : ""} au pic`}
                       </span>
                     </div>
                     {q.plafond !== null && (
@@ -90,17 +100,21 @@ export default function PlanningPage() {
                     )}
                     <div className="mt-2.5 flex flex-1 items-end justify-between gap-2 text-sm">
                       <span className="tabular-nums text-slate-500">
-                        {q.plafond === null ? "Sans plafond" : `${q.departs} / ${q.plafond} départs`}
+                        {q.plafond === null ? "Sans plafond" : `${q.pic} / ${q.plafond} absents simultanément`}
                       </span>
-                      {restant !== 0 && (
-                        <Link
-                          href={`/demande?annee=${annee}&mois=${Number(mois)}&partie=${partie}`}
-                          className="inline-flex items-center gap-1 font-semibold text-brand-600 hover:text-brand-700"
-                        >
-                          Partir à cette date <ArrowRight className="h-4 w-4" aria-hidden />
-                        </Link>
-                      )}
+                      {q.picLe && <span className="text-right text-xs text-slate-500">Pic le {formatFr(q.picLe)}</span>}
                     </div>
+                    {joursDepasses.length > 0 && (
+                      <p className="mt-2 text-xs leading-relaxed text-rose-700">
+                        Dépassement : {joursDepasses.map((j) => `${formatFr(j.date)} (${j.absents})`).join(" · ")}
+                      </p>
+                    )}
+                    <Link
+                      href={`/demande?annee=${annee}&mois=${Number(mois)}&partie=${partie}`}
+                      className="mt-3 inline-flex items-center gap-1 self-end font-semibold text-brand-600 hover:text-brand-700"
+                    >
+                      Vérifier les dates <ArrowRight className="h-4 w-4" aria-hidden />
+                    </Link>
                   </Carte>
                 );
               })}

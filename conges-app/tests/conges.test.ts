@@ -14,6 +14,7 @@ import {
   trouverAgent,
   verifierDemande,
   verifierFetesMajeures,
+  verifierPlafond,
   type Agent,
   type Demande,
   type Periode,
@@ -295,26 +296,49 @@ describe("verifierDemande", () => {
     expect(verifierDemande(registre(a), a, periodes(2027, 3, 11, "debut"), AUJOURDHUI).ok).toBe(false);
   });
 
-  it("plafond : 18 départs AV dans une quinzaine → refus", () => {
+  it("plafond : 18 AV déjà absents le même jour → refus", () => {
     const absents = Array.from({ length: 18 }, (_, i) =>
-      agent({ matricule: `A${i}`, historique: [{ debut: "2027-03-15", fin: "2027-03-15", jours: 1 }] })
+      agent({ matricule: `A${i}`, historique: [{ debut: "2027-03-01", fin: "2027-03-01", jours: 1 }] })
     );
     const demandeur = agent({ matricule: "9999" });
     const r = verifierDemande(registre(demandeur, ...absents), demandeur, periodes(2027, 3, 11, "debut"), AUJOURDHUI);
     expect(r.ok).toBe(false);
-    // Les départs de la première quinzaine ne consomment pas celle qui suit.
+    // Les agents ne sont plus absents pendant la seconde quinzaine.
     expect(verifierDemande(registre(demandeur, ...absents), demandeur, periodes(2027, 3, 11, "fin"), AUJOURDHUI).ok).toBe(true);
   });
 
-  it("un congé qui traverse la quinzaine suivante n'y réserve pas un second départ", () => {
+  it("vérifie le plafond pour chaque jour de la période", () => {
     const agents = Array.from({ length: 18 }, (_, i) =>
-      agent({ matricule: `C${i}`, historique: [{ debut: "2027-03-15", fin: "2027-03-20", jours: 5 }] })
+      agent({ matricule: `C${i}`, historique: [{ debut: "2027-03-15", fin: "2027-03-15", jours: 1 }] })
     );
     const demandeur = agent({ matricule: "C99" });
     const r = registre(demandeur, ...agents);
-    const secondeQuinzaine = occupationParQuinzaine(r, "AV", "2027-03-16", 1)[0];
-    expect(secondeQuinzaine.departs).toBe(0);
-    expect(verifierDemande(r, demandeur, periodes(2027, 3, 11, "fin"), AUJOURDHUI).ok).toBe(true);
+    expect(verifierPlafond(r, demandeur, [{ debut: "2027-03-01", fin: "2027-03-14", jours: 10 }]).ok).toBe(true);
+    expect(verifierPlafond(r, demandeur, [{ debut: "2027-03-01", fin: "2027-03-15", jours: 11 }]).ok).toBe(false);
+  });
+
+  it("calcule le pic simultané plutôt que le nombre de personnes successives", () => {
+    const premieres = Array.from({ length: 18 }, (_, i) =>
+      agent({ matricule: `D${i}`, demandes: [demande([{ debut: "2027-03-01", fin: "2027-03-07", jours: 6 }])] })
+    );
+    const suivantes = Array.from({ length: 18 }, (_, i) =>
+      agent({ matricule: `E${i}`, demandes: [demande([{ debut: "2027-03-08", fin: "2027-03-15", jours: 7 }])] })
+    );
+    const occ = occupationParQuinzaine(registre(...premieres, ...suivantes), "AV", "2027-03-01", 1)[0];
+    expect(occ.pic).toBe(18);
+    expect(occ.parJour).toHaveLength(15);
+    expect(occ.picLe).toBe("2027-03-01");
+  });
+
+  it("n'inclut pas les congés importés dans le quota des soumissions plateforme", () => {
+    const sansSoumission = agent({
+      historique: [{ debut: "2026-12-16", fin: "2026-12-31", jours: 12 }]
+    });
+    const r = registre(sansSoumission);
+    expect(occupationParQuinzaine(r, "AV", "2026-12-16", 1)[0].pic).toBe(0);
+
+    sansSoumission.demandes.push(demande([{ debut: "2026-12-16", fin: "2026-12-31", jours: 12 }]));
+    expect(occupationParQuinzaine(r, "AV", "2026-12-16", 1)[0].pic).toBe(1);
   });
 
   it("plafond : les vœux en attente comptent, les supprimés non", () => {
@@ -343,10 +367,11 @@ describe("verifierDemande", () => {
 });
 
 describe("occupation et synthèse admin", () => {
-  it("compte les départs par quinzaine et par rôle", () => {
-    const r = registre(agent({ historique: [{ debut: "2027-03-10", fin: "2027-03-20", jours: 9 }] }));
+  it("compte le pic d'absents par quinzaine et par rôle", () => {
+    const r = registre(agent({ demandes: [demande([{ debut: "2027-03-10", fin: "2027-03-20", jours: 9 }])] }));
     const occ = occupationParQuinzaine(r, "AV", "2027-03-01", 3);
-    expect(occ.map((q) => q.departs)).toEqual([1, 0, 0]);
+    expect(occ.map((q) => q.pic)).toEqual([1, 1, 0]);
+    expect(occ.map((q) => q.picLe)).toEqual(["2027-03-10", "2027-03-16", null]);
     expect(occ[0].plafond).toBe(18);
   });
 

@@ -11,7 +11,7 @@ export const CONFIG = {
   DELAI_MOIS: 12, // entre la fin d'un congé et le début du suivant
   ANCIENNETE_MIN_MOIS: 12, // premier congé possible à la date anniversaire d'entrée
   JOURS_ACQUIS_PAR_MOIS: 2,
-  /** Départs au maximum par quinzaine, par rôle (null = pas de plafond). */
+  /** Absents simultanés au maximum par jour, par rôle (null = pas de plafond). */
   PLAFONDS: { AV: 18, CEV: 3, CS: null } as Record<Role, number | null>
 } as const;
 
@@ -262,12 +262,24 @@ function chevauche(a: { debut: string; fin: string }, b: { debut: string; fin: s
   return !(a.fin < b.debut || a.debut > b.fin);
 }
 
-/** Matricules des agents d'un rôle dont un congé commence dans la quinzaine. */
-export function departsQuinzaine(registre: Registre, role: Role, q: Quinzaine, sauf?: string): Set<string> {
+/** Matricules des agents d'un rôle absents à cette date. */
+function absentsLeJour(registre: Registre, role: Role, date: string, sauf?: string): Set<string> {
   const res = new Set<string>();
   for (const a of Object.values(registre.agents)) {
     if (a.role !== role || a.matricule === sauf) continue;
-    if (congesDeLAgent(a).some((c) => c.periodes.some((p) => q.debut <= p.debut && p.debut <= q.fin))) {
+    if (congesDeLAgent(a).some((c) => c.periodes.some((p) => p.debut <= date && date <= p.fin))) {
+      res.add(a.matricule);
+    }
+  }
+  return res;
+}
+
+/** Matricules des agents ayant un vœu actif sur cette date (sans l'historique importé). */
+function soumissionsActivesLeJour(registre: Registre, role: Role, date: string): Set<string> {
+  const res = new Set<string>();
+  for (const a of Object.values(registre.agents)) {
+    if (a.role !== role) continue;
+    if (demandesActives(a).some((d) => d.periodes.some((p) => p.debut <= date && date <= p.fin))) {
       res.add(a.matricule);
     }
   }
@@ -279,7 +291,9 @@ export interface OccupationQuinzaine {
   libelle: string;
   debut: string;
   fin: string;
-  departs: number;
+  pic: number;
+  picLe: string | null;
+  parJour: { date: string; absents: number }[];
   plafond: number | null;
 }
 
@@ -292,12 +306,19 @@ export function occupationParQuinzaine(
   const res: OccupationQuinzaine[] = [];
   let q = quinzaineDe(depuis);
   for (let i = 0; i < nbQuinzaines; i++, q = quinzaineSuivante(q)) {
+    const parJour: { date: string; absents: number }[] = [];
+    for (let date = q.debut; date <= q.fin; date = dateToStr(ajouterJours(strToDate(date), 1))) {
+      parJour.push({ date, absents: soumissionsActivesLeJour(registre, role, date).size });
+    }
+    const pic = Math.max(0, ...parJour.map((jour) => jour.absents));
     res.push({
       cle: q.cle,
       libelle: libelleQuinzaine(q),
       debut: q.debut,
       fin: q.fin,
-      departs: departsQuinzaine(registre, role, q).size,
+      pic,
+      picLe: pic > 0 ? parJour.find((jour) => jour.absents === pic)!.date : null,
+      parJour,
       plafond: CONFIG.PLAFONDS[role]
     });
   }
@@ -469,16 +490,16 @@ export function verifierFetesMajeures(agent: Agent, nouvelles: Periode[]): Verif
 export function verifierPlafond(registre: Registre, agent: Agent, periodes: Periode[]): Verif {
   const plafond = CONFIG.PLAFONDS[agent.role];
   if (plafond === null) return { ok: true };
-  const vues = new Set<string>();
+  const datesVues = new Set<string>();
   for (const p of periodes) {
-    for (const q of quinzainesEntre(p.debut, p.fin)) {
-      if (vues.has(q.cle)) continue;
-      vues.add(q.cle);
-      const departs = departsQuinzaine(registre, agent.role, q, agent.matricule).size;
-      if (departs + 1 > plafond) {
+    for (let date = p.debut; date <= p.fin; date = dateToStr(ajouterJours(strToDate(date), 1))) {
+      if (datesVues.has(date)) continue;
+      datesVues.add(date);
+      const absents = absentsLeJour(registre, agent.role, date, agent.matricule).size;
+      if (absents + 1 > plafond) {
         return {
           ok: false,
-          message: `⛔ Le plafond de départs est atteint pour la quinzaine du ${libelleQuinzaine(q)} pour les ${LIBELLES_ROLE[agent.role].toLowerCase()} (${departs}/${plafond}). Consultez les disponibilités pour choisir une autre période.`
+          message: `⛔ Le plafond de ${plafond} ${LIBELLES_ROLE[agent.role].toLowerCase()} simultanément en congé serait dépassé le ${formatFr(date)} (${absents} déjà prévus). Consultez les disponibilités pour choisir d'autres dates.`
         };
       }
     }

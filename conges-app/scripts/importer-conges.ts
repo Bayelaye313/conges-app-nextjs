@@ -22,10 +22,10 @@ import { compterJoursDecomptes } from "../lib/calendrier";
 import {
   ajouterJours,
   CONFIG,
-  departsQuinzaine,
   dateToStr,
   LIBELLES_ROLE,
   libelleQuinzaine,
+  occupationParQuinzaine,
   quinzainesEntre,
   strToDate,
   trouverAgent,
@@ -104,8 +104,12 @@ async function main() {
     for (const q of quinzainesEntre(min, max)) {
       for (const role of ["AV", "CEV"] as Role[]) {
         const plafond = CONFIG.PLAFONDS[role]!;
-        const nb = departsQuinzaine(registre, role, q).size;
-        if (nb > plafond) alertes.push(`${libelleQuinzaine(q)} : ${nb} départs ${LIBELLES_ROLE[role].toLowerCase()} (plafond ${plafond})`);
+        const occupation = occupationParQuinzaine(registre, role, q.debut, 1)[0];
+        if (occupation.pic > plafond) {
+          alertes.push(
+            `${libelleQuinzaine(q)} : pic de ${occupation.pic} ${LIBELLES_ROLE[role].toLowerCase()} le ${occupation.picLe} (plafond ${plafond})`
+          );
+        }
       }
     }
   }
