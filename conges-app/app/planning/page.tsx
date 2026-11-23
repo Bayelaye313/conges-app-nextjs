@@ -25,7 +25,6 @@ interface Quinzaine {
 
 interface ReponsePlanning {
   libelleRole: string;
-  plafond: number | null;
   quinzaines: Quinzaine[];
 }
 
@@ -33,6 +32,7 @@ export default function PlanningPage() {
   const router = useRouter();
   const [donnees, setDonnees] = useState<ReponsePlanning | null>(null);
   const [erreur, setErreur] = useState("");
+  const sansPlafond = donnees?.quinzaines.every((q) => q.plafond === null) ?? false;
 
   useEffect(() => {
     appelApi<ReponsePlanning>(router, "/api/planning")
@@ -53,9 +53,9 @@ export default function PlanningPage() {
           titre="Places disponibles par quinzaine"
           description={
             donnees &&
-            (donnees.plafond === null
+            (sansPlafond
               ? `Pas de plafond pour les ${donnees.libelleRole.toLowerCase()} : seules vos règles individuelles (solde, délai de 12 mois) s'appliquent.`
-              : `Au plus ${donnees.plafond} ${donnees.libelleRole.toLowerCase()} simultanément en congé chaque jour. Les demandes en attente et validées sont comptées pour chaque journée d'absence.`)
+              : `Le plafond quotidien est indiqué pour chaque quinzaine. Les demandes en attente et validées sont comptées pour chaque journée d'absence.`)
           }
         />
 
@@ -64,7 +64,7 @@ export default function PlanningPage() {
 
         {donnees && (
           <>
-            {donnees.plafond !== null && (
+            {!sansPlafond && (
               <div className="mb-4 flex flex-wrap gap-x-4 gap-y-2 text-[13px] font-medium text-slate-600">
                 <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />Places disponibles</span>
                 <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-amber-500" />Presque complet</span>

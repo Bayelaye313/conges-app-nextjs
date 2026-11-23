@@ -15,8 +15,8 @@ d'administration (matricule 0568) pour suivre, valider, supprimer et exporter le
 | Grandes fêtes | Sur une même année, un agent ne peut pas être en congé pour la Korité **et** la Tabaski, ni pour le Grand Magal de Touba **et** le Gamou (Maouloud) (congés repris, vœux actifs et nouveau vœu confondus). Les dimanches et fériés collés à une période comptent comme absence. |
 | Ancienneté | Premier congé possible à partir de la date anniversaire d'entrée (12 mois). |
 | Délai | 12 mois entre la date de retour d'un congé et le départ du suivant. |
-| Plafonds | On limite les absents simultanés par jour : 18 AV, 3 CEV, CS sans plafond. Les vœux en attente et validés comptent chaque jour d'absence ; les demandes supprimées ne comptent plus. Le planning par quinzaine indique le pic quotidien et les dates en dépassement. |
-| Congés 2026 | Repris de l'ancien suivi, ils comptent pour le délai, les chevauchements et les plafonds, mais ne sont pas re-débités (déjà dans le cumul « jours pris »). |
+| Plafonds | On limite les absents simultanés par jour : agents de vente à 9 du 1er au 15 janvier 2027, puis 16 ; chefs d'équipe à 3 ; chefs de secteur sans plafond. Les vœux en attente et validés comptent dans le planning par quinzaine, les demandes supprimées et l'historique importé n'y comptent pas. |
+| Congés 2026 | Repris de l'ancien suivi, ils comptent pour le délai, les chevauchements et la vérification des plafonds à la soumission, mais ne sont pas re-débités (déjà dans le cumul « jours pris »). |
 
 ⚠ Les dates des fêtes musulmanes (Korité, Tabaski, Tamkharit, Magal, Maouloud) sont des
 **estimations** dans `lib/calendrier.ts` : les corriger dès la publication du calendrier

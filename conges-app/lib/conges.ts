@@ -12,7 +12,7 @@ export const CONFIG = {
   ANCIENNETE_MIN_MOIS: 12, // premier congé possible à la date anniversaire d'entrée
   JOURS_ACQUIS_PAR_MOIS: 2,
   /** Absents simultanés au maximum par jour, par rôle (null = pas de plafond). */
-  PLAFONDS: { AV: 18, CEV: 3, CS: null } as Record<Role, number | null>
+  PLAFONDS: { AV: 16, CEV: 3, CS: null } as Record<Role, number | null>
 } as const;
 
 export const LIBELLES_ROLE: Record<Role, string> = {
@@ -20,6 +20,13 @@ export const LIBELLES_ROLE: Record<Role, string> = {
   CEV: "Chefs d'équipe vente",
   CS: "Chefs de secteur"
 };
+
+export function plafondParDate(role: Role, date: string): number | null {
+  if (role === "AV" && date >= "2027-01-01") {
+    return date <= "2027-01-15" ? 9 : 16;
+  }
+  return CONFIG.PLAFONDS[role];
+}
 
 // -------------------- MODELE --------------------
 export interface Periode {
@@ -319,7 +326,7 @@ export function occupationParQuinzaine(
       pic,
       picLe: pic > 0 ? parJour.find((jour) => jour.absents === pic)!.date : null,
       parJour,
-      plafond: CONFIG.PLAFONDS[role]
+      plafond: plafondParDate(role, q.debut)
     });
   }
   return res;
@@ -488,13 +495,14 @@ export function verifierFetesMajeures(agent: Agent, nouvelles: Periode[]): Verif
 }
 
 export function verifierPlafond(registre: Registre, agent: Agent, periodes: Periode[]): Verif {
-  const plafond = CONFIG.PLAFONDS[agent.role];
-  if (plafond === null) return { ok: true };
+  if (CONFIG.PLAFONDS[agent.role] === null) return { ok: true };
   const datesVues = new Set<string>();
   for (const p of periodes) {
     for (let date = p.debut; date <= p.fin; date = dateToStr(ajouterJours(strToDate(date), 1))) {
       if (datesVues.has(date)) continue;
       datesVues.add(date);
+      const plafond = plafondParDate(agent.role, date);
+      if (plafond === null) continue;
       const absents = absentsLeJour(registre, agent.role, date, agent.matricule).size;
       if (absents + 1 > plafond) {
         return {

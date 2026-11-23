@@ -18,6 +18,7 @@ import {
   type Compte
 } from "../lib/auth";
 import { lireDocument, modifierDocument, ecrireDocumentForce } from "../lib/storage";
+import { POST as connexion } from "../app/api/auth/connexion/route";
 
 beforeAll(() => {
   process.env.CONGES_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "conges-test-"));
@@ -59,6 +60,42 @@ describe("codes d'accès", () => {
 });
 
 describe("session", () => {
+  it("permet la connexion avec un code provisoire sans imposer son remplacement", async () => {
+    const code = "Code-provisoire-test-2026";
+    const agent = {
+      matricule: "0779",
+      prenom: "Test",
+      nom: "Agent",
+      fonction: "AGENT DE VENTE",
+      role: "AV" as const,
+      date_embauche: "2024-01-08",
+      jours_pris_reprise: 0,
+      historique: [],
+      demandes: [],
+      auth: {
+        hash: await hacherCode(code),
+        doit_changer: true,
+        modifie_le: "2026-11-20T00:00:00.000Z"
+      }
+    };
+    await ecrireDocumentForce({
+      version: 2 as const,
+      date_reprise: "2026-10-31",
+      agents: { "0779": agent },
+      admins: {}
+    });
+
+    const reponse = await connexion(new NextRequest("https://conges.test/api/auth/connexion", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ matricule: agent.matricule, code })
+    }));
+
+    expect(reponse.status).toBe(200);
+    await expect(reponse.json()).resolves.toMatchObject({ ok: true, type: "agent" });
+    expect(reponse.cookies.get(COOKIE_SESSION)?.value).toBeTruthy();
+  });
+
   it("autorise un agent à utiliser son code provisoire sans le remplacer", async () => {
     const agent = {
       matricule: "0779",

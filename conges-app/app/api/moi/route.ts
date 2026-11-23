@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { aujourdhuiUTC, CONFIG, vuePublique } from "@/lib/conges";
+import { aujourdhuiUTC, CONFIG, dateToStr, plafondParDate, vuePublique } from "@/lib/conges";
 import { exigerAgent } from "@/lib/auth";
 import { refusSession } from "@/lib/api";
 
@@ -13,6 +13,6 @@ export async function GET(req: NextRequest) {
     agent: vuePublique(session.compte.agent, aujourdhuiUTC()),
     minJours: CONFIG.MIN_DAYS,
     delaiMois: CONFIG.DELAI_MOIS,
-    plafond: CONFIG.PLAFONDS[session.compte.agent.role]
+    plafond: plafondParDate(session.compte.agent.role, dateToStr(aujourdhuiUTC()))
   });
 }

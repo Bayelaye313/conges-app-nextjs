@@ -296,8 +296,8 @@ describe("verifierDemande", () => {
     expect(verifierDemande(registre(a), a, periodes(2027, 3, 11, "debut"), AUJOURDHUI).ok).toBe(false);
   });
 
-  it("plafond : 18 AV déjà absents le même jour → refus", () => {
-    const absents = Array.from({ length: 18 }, (_, i) =>
+  it("plafond : 16 AV déjà absents le même jour → refus", () => {
+    const absents = Array.from({ length: 16 }, (_, i) =>
       agent({ matricule: `A${i}`, historique: [{ debut: "2027-03-01", fin: "2027-03-01", jours: 1 }] })
     );
     const demandeur = agent({ matricule: "9999" });
@@ -308,7 +308,7 @@ describe("verifierDemande", () => {
   });
 
   it("vérifie le plafond pour chaque jour de la période", () => {
-    const agents = Array.from({ length: 18 }, (_, i) =>
+    const agents = Array.from({ length: 16 }, (_, i) =>
       agent({ matricule: `C${i}`, historique: [{ debut: "2027-03-15", fin: "2027-03-15", jours: 1 }] })
     );
     const demandeur = agent({ matricule: "C99" });
@@ -341,8 +341,51 @@ describe("verifierDemande", () => {
     expect(occupationParQuinzaine(r, "AV", "2026-12-16", 1)[0].pic).toBe(1);
   });
 
+  it("applique 9 AV du 1 au 15 janvier 2027, puis 16", () => {
+    expect(occupationParQuinzaine(registre(), "AV", "2026-12-16", 1)[0].plafond).toBe(16);
+    expect(occupationParQuinzaine(registre(), "AV", "2027-01-01", 1)[0].plafond).toBe(9);
+    expect(occupationParQuinzaine(registre(), "AV", "2027-01-16", 1)[0].plafond).toBe(16);
+    expect(occupationParQuinzaine(registre(), "AV", "2027-02-01", 1)[0].plafond).toBe(16);
+
+    const demandeur = agent({ matricule: "9999" });
+    const neufEnJanvier = Array.from({ length: 9 }, (_, i) =>
+      agent({
+        matricule: `J${i}`,
+        demandes: [demande([{ debut: "2027-01-01", fin: "2027-01-15", jours: 11 }])]
+      })
+    );
+    expect(
+      verifierPlafond(registre(demandeur, ...neufEnJanvier), demandeur, [
+        { debut: "2027-01-15", fin: "2027-01-16", jours: 2 }
+      ]).ok
+    ).toBe(false);
+
+    const quinzeLe16 = Array.from({ length: 15 }, (_, i) =>
+      agent({
+        matricule: `F${i}`,
+        demandes: [demande([{ debut: "2027-01-16", fin: "2027-01-16", jours: 1 }])]
+      })
+    );
+    expect(
+      verifierPlafond(registre(demandeur, ...quinzeLe16), demandeur, [
+        { debut: "2027-01-16", fin: "2027-01-16", jours: 1 }
+      ]).ok
+    ).toBe(true);
+    quinzeLe16.push(
+      agent({
+        matricule: "F15",
+        demandes: [demande([{ debut: "2027-01-16", fin: "2027-01-16", jours: 1 }])]
+      })
+    );
+    expect(
+      verifierPlafond(registre(demandeur, ...quinzeLe16), demandeur, [
+        { debut: "2027-01-16", fin: "2027-01-16", jours: 1 }
+      ]).ok
+    ).toBe(false);
+  });
+
   it("plafond : les vœux en attente comptent, les supprimés non", () => {
-    const enAttente = Array.from({ length: 18 }, (_, i) =>
+    const enAttente = Array.from({ length: 16 }, (_, i) =>
       agent({ matricule: `B${i}`, demandes: [demande(periodes(2027, 3, 11, "debut"))] })
     );
     const demandeur = agent({ matricule: "9999" });
@@ -372,7 +415,7 @@ describe("occupation et synthèse admin", () => {
     const occ = occupationParQuinzaine(r, "AV", "2027-03-01", 3);
     expect(occ.map((q) => q.pic)).toEqual([1, 1, 0]);
     expect(occ.map((q) => q.picLe)).toEqual(["2027-03-10", "2027-03-16", null]);
-    expect(occ[0].plafond).toBe(18);
+    expect(occ[0].plafond).toBe(16);
   });
 
   it("liste les agents sans vœu et les KPIs", () => {

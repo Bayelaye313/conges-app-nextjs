@@ -626,7 +626,7 @@ export default function AdminPage() {
                   <tr>
                     <th className={cellule}>Quinzaine</th>
                     {(["AV", "CEV", "CS"] as Role[]).map((r) => (
-                      <th key={r} className={cellule}>{r} <span className="font-normal normal-case">({s.plafonds[r] === null ? "sans plafond" : `plafond ${s.plafonds[r]}`})</span></th>
+                      <th key={r} className={cellule}>{r} <span className="font-normal normal-case">({s.plafonds[r] === null ? "sans plafond" : r === "AV" ? "plafond selon période" : `plafond ${s.plafonds[r]}`})</span></th>
                     ))}
                   </tr>
                 </thead>

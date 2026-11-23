@@ -20,7 +20,6 @@ export async function GET(req: NextRequest) {
     ok: true,
     role,
     libelleRole: LIBELLES_ROLE[role],
-    plafond: CONFIG.PLAFONDS[role],
     minJours: CONFIG.MIN_DAYS,
     quinzaines: occupationParQuinzaine(await chargerRegistre(), role, dateToStr(aujourdhuiUTC()), 16)
   });
