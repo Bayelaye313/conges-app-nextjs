@@ -152,6 +152,17 @@ describe("construirePeriodes", () => {
     expect(construirePeriodes([c(2027, 1, "debut", 5), c(2027, 3, "debut", 5), c(2027, 6, "debut", 5)]).status).toBe("erreur");
   });
 
+  it("n'impose pas de minimum aux demandes de récupération", () => {
+    expect(construirePeriodes([c(2027, 3, "debut", 1)], "recuperation").status).toBe("ok");
+    expect(
+      construirePeriodes(
+        [c(2027, 3, "debut", 1), c(2027, 6, "debut", 1)],
+        "recuperation"
+      ).status
+    ).toBe("ok");
+    expect(construirePeriodes([c(2027, 3, "debut", 1)]).status).toBe("erreur");
+  });
+
   it("refuse deux périodes qui se chevauchent", () => {
     // 1er mars + 15 jours décomptés déborde après le 16
     expect(construirePeriodes([c(2027, 3, "debut", 15), c(2027, 3, "fin", 6)]).status).toBe("erreur");
@@ -275,6 +286,28 @@ describe("verifierDemande", () => {
     expect(premiereDatePossible(a, AUJOURDHUI)).toBe("2027-09-01");
     expect(verifierDemande(registre(a), a, periodes(2027, 8, 11, "fin"), AUJOURDHUI).ok).toBe(false);
     expect(verifierDemande(registre(a), a, periodes(2027, 9, 11, "debut"), AUJOURDHUI).ok).toBe(true);
+  });
+
+  it("les récupérations sont indépendantes du délai depuis le dernier congé", () => {
+    const a = agent({
+      jours_pris_reprise: 0,
+      historique: [{ debut: "2026-08-01", fin: "2026-08-15", jours: 12 }]
+    });
+    const unJour = [{ debut: "2027-02-01", fin: "2027-02-01", jours: 1 }];
+    expect(verifierDemande(registre(a), a, unJour, AUJOURDHUI).ok).toBe(false);
+    expect(verifierDemande(registre(a), a, unJour, AUJOURDHUI, "recuperation").ok).toBe(true);
+  });
+
+  it("une récupération ne repousse pas la prochaine date de congé", () => {
+    const recovery = demande([{ debut: "2027-12-01", fin: "2027-12-01", jours: 1 }]);
+    recovery.type = "recuperation";
+    const a = agent({
+      jours_pris_reprise: 0,
+      historique: [{ debut: "2026-03-01", fin: "2026-03-15", jours: 12 }],
+      demandes: [recovery]
+    });
+    expect(premiereDatePossible(a, AUJOURDHUI)).toBe("2027-03-16");
+    expect(verifierDemande(registre(a), a, periodes(2027, 3, 11, "fin"), AUJOURDHUI).ok).toBe(true);
   });
 
   it("autorise une nouvelle demande dès l'anniversaire des 12 mois après le retour", () => {

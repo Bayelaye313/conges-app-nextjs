@@ -179,10 +179,10 @@ interface Conge {
   periodes: Periode[];
 }
 
-export function congesDeLAgent(agent: Agent): Conge[] {
+export function congesDeLAgent(agent: Agent, inclureRecuperations = true): Conge[] {
   const conges: Conge[] = [
     ...agent.historique.map((p) => ({ debut: p.debut, fin: p.fin, periodes: [p] })),
-    ...demandesActives(agent).map((d) => ({
+    ...demandesActives(agent).filter((d) => inclureRecuperations || d.type !== "recuperation").map((d) => ({
       debut: d.periodes[0].debut,
       fin: d.periodes[d.periodes.length - 1].fin,
       periodes: d.periodes
@@ -196,7 +196,7 @@ export function congesDeLAgent(agent: Agent): Conge[] {
 }
 
 export function dernierConge(agent: Agent): Conge | null {
-  return congesDeLAgent(agent).reduce<Conge | null>((max, c) => (!max || c.fin > max.fin ? c : max), null);
+  return congesDeLAgent(agent, false).reduce<Conge | null>((max, c) => (!max || c.fin > max.fin ? c : max), null);
 }
 
 /** Prochaine date de départ choisissable (le 1er ou le 16 du mois) à partir de `date`. */
@@ -349,21 +349,20 @@ function periode(depart: Date, nbJours: number): Periode {
 }
 
 /**
- * Un vœu = 1 période continue (qui peut couvrir un mois entier ou déborder
- * sur le suivant) ou 2 périodes distinctes, chacune avec son propre mois,
- * sa date de départ et son nombre de jours. Les dimanches et jours fériés ne
- * sont pas décomptés : la période s'allonge d'autant. Le minimum de
- * CONFIG.MIN_DAYS jours s'applique au total du vœu.
+ * Une demande = 1 période continue (qui peut couvrir un mois entier ou déborder
+ * sur le suivant) ou 2 périodes distinctes. Les dimanches et jours fériés ne
+ * sont pas décomptés : la période s'allonge d'autant. Le minimum s'applique
+ * aux congés, pas aux récupérations.
  */
-export function construirePeriodes(choix: ChoixPeriode[]): ConstructionResult {
+export function construirePeriodes(choix: ChoixPeriode[], type: TypeDemande = "conge"): ConstructionResult {
   if (choix.length < 1 || choix.length > 2) {
-    return { status: "erreur", message: "❌ Un vœu comporte 1 ou 2 périodes." };
+    return { status: "erreur", message: "❌ Une demande comporte 1 ou 2 périodes." };
   }
   if (choix.some((c) => !Number.isInteger(c.nbJours) || c.nbJours < 1)) {
     return { status: "erreur", message: "❌ Indiquez un nombre de jours pour chaque période." };
   }
   const total = choix.reduce((s, c) => s + c.nbJours, 0);
-  if (total < CONFIG.MIN_DAYS) {
+  if (type === "conge" && total < CONFIG.MIN_DAYS) {
     return {
       status: "erreur",
       message:
@@ -373,7 +372,7 @@ export function construirePeriodes(choix: ChoixPeriode[]): ConstructionResult {
     };
   }
   if (total > CONFIG.MAX_DAYS) {
-    return { status: "erreur", message: `❌ Un vœu ne peut pas dépasser ${CONFIG.MAX_DAYS} jours.` };
+    return { status: "erreur", message: `❌ Une demande ne peut pas dépasser ${CONFIG.MAX_DAYS} jours.` };
   }
 
   const periodes = choix
@@ -516,7 +515,13 @@ export function verifierPlafond(registre: Registre, agent: Agent, periodes: Peri
 }
 
 /** Toutes les règles, sans rien enregistrer (aperçu et soumission). */
-export function verifierDemande(registre: Registre, agent: Agent, periodes: Periode[], aujourdHui: Date): Verif {
+export function verifierDemande(
+  registre: Registre,
+  agent: Agent,
+  periodes: Periode[],
+  aujourdHui: Date,
+  type: TypeDemande = "conge"
+): Verif {
   if (periodes.length === 0) return { ok: false, message: "Aucune date sélectionnée." };
   const debut = periodes[0].debut;
   const fin = periodes[periodes.length - 1].fin;
@@ -537,18 +542,23 @@ export function verifierDemande(registre: Registre, agent: Agent, periodes: Peri
     if (c.periodes.some((p) => periodes.some((n) => chevauche(p, n)))) {
       return { ok: false, message: `⛔ Chevauchement avec votre congé du ${formatFr(c.debut)} au ${formatFr(c.fin)}.` };
     }
-    // Délai de 12 mois dans les deux sens (on peut demander avant un congé déjà prévu).
-    const finPrecedent = c.fin < debut ? c.fin : fin;
-    const debutSuivant = c.fin < debut ? debut : c.debut;
-    const limite = dateToStr(ajouterMois(ajouterJours(strToDate(finPrecedent), 1), CONFIG.DELAI_MOIS));
-    if (debutSuivant < limite) {
-      return {
-        ok: false,
-        message:
-          c.fin < debut
-            ? `⛔ Délai de ${CONFIG.DELAI_MOIS} mois non respecté : votre dernier congé finit le ${formatFr(c.fin)}, prochain départ possible le ${formatFr(limite)}.`
-            : `⛔ Délai de ${CONFIG.DELAI_MOIS} mois non respecté avec votre congé prévu le ${formatFr(c.debut)}.`
-      };
+  }
+
+  if (type === "conge") {
+    // Le délai de 12 mois lie les congés entre eux, mais pas les récupérations.
+    for (const c of congesDeLAgent(agent, false)) {
+      const finPrecedent = c.fin < debut ? c.fin : fin;
+      const debutSuivant = c.fin < debut ? debut : c.debut;
+      const limite = dateToStr(ajouterMois(ajouterJours(strToDate(finPrecedent), 1), CONFIG.DELAI_MOIS));
+      if (debutSuivant < limite) {
+        return {
+          ok: false,
+          message:
+            c.fin < debut
+              ? `⛔ Délai de ${CONFIG.DELAI_MOIS} mois non respecté : votre dernier congé finit le ${formatFr(c.fin)}, prochain départ possible le ${formatFr(limite)}.`
+              : `⛔ Délai de ${CONFIG.DELAI_MOIS} mois non respecté avec votre congé prévu le ${formatFr(c.debut)}.`
+        };
+      }
     }
   }
 
@@ -592,7 +602,7 @@ export function soumettreDemande(
     const agent = trouverAgent(registre, matricule);
     if (!agent) return { ecrire: false, resultat: { succes: false, message: "❌ Agent introuvable." } };
 
-    const verif = verifierDemande(registre, agent, periodes, aujourdhuiUTC());
+    const verif = verifierDemande(registre, agent, periodes, aujourdhuiUTC(), type);
     if (!verif.ok) return { ecrire: false, resultat: { succes: false, message: verif.message } };
 
     const jours = periodes.reduce((s, p) => s + p.jours, 0);

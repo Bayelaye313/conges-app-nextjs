@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
   if (!corps.ok) return corps.reponse;
   const { confirmer, type = "conge" } = corps.data;
 
-  const construction = construirePeriodes(corps.data.periodes);
+  const construction = construirePeriodes(corps.data.periodes, type);
   if (construction.status === "erreur") return erreur(422, construction.message);
   const periodes = construction.periodes;
 
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   // Aperçu : mêmes vérifications que la soumission, sans rien enregistrer.
   const registre = await chargerRegistre();
   const agent = trouverAgent(registre, session.compte.matricule)!;
-  const verif = verifierDemande(registre, agent, periodes, aujourdhuiUTC());
+  const verif = verifierDemande(registre, agent, periodes, aujourdhuiUTC(), type);
   if (!verif.ok) return erreur(422, verif.message);
 
   const soldes = projeterSolde(agent, periodes).filter((s) => s.nouvelle);

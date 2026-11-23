@@ -45,9 +45,9 @@ function DemandeForm({ type }: { type: TypeDemande }) {
     annee: Number(searchParams.get("annee")) || anneeCourante,
     mois: Number(searchParams.get("mois")) || maintenant.getUTCMonth() + 1,
     partie: searchParams.get("partie") === "2" ? "fin" : "debut",
-    nbJours: 11
+    nbJours: recuperation ? 1 : 11
   });
-  const [choix2, setChoix2] = useState<Choix>(() => ({ ...choix1, nbJours: 6 }));
+  const [choix2, setChoix2] = useState<Choix>(() => ({ ...choix1, nbJours: recuperation ? 1 : 6 }));
 
   const [apercu, setApercu] = useState<Apercu | null>(null);
   const [erreur, setErreur] = useState("");
@@ -164,7 +164,7 @@ function DemandeForm({ type }: { type: TypeDemande }) {
           titre={recuperation ? "Demander une récupération" : "Déposer un vœu de congé"}
           description={
             recuperation
-              ? "Utilisez les jours restant sur votre solde. Les mêmes règles s'appliquent que pour un congé : départ le 1er ou le 16, minimum 11 jours, validation par l'administration."
+              ? "Utilisez les jours restant sur votre solde. Aucun minimum de jours ni délai de 12 mois entre congés ne s'applique aux récupérations. Départ le 1er ou le 16, validation par l'administration."
               : "Départ le 1er ou le 16 du mois, minimum 11 jours. Les dimanches et jours fériés du calendrier sénégalais ne sont pas décomptés : seuls les jours ouvrables posés sont déduits de votre solde, recalculé à la date de départ (+2 jours par mois d'ici là)."
           }
         />
@@ -204,11 +204,14 @@ function DemandeForm({ type }: { type: TypeDemande }) {
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600 text-xs text-white">2</span>
                 {mode === 1 ? "Quand et combien de jours ?" : "1ʳᵉ période"}
               </h2>
-              <div className="mt-3">{champsPeriode(choix1, setChoix1, mode === 1 ? 11 : 1)}</div>
-              {mode === 1 && (
+              <div className="mt-3">{champsPeriode(choix1, setChoix1, mode === 1 && !recuperation ? 11 : 1)}</div>
+              {mode === 1 && !recuperation && (
                 <p className="mt-2 text-sm text-slate-500">
                   Minimum 11 jours. La période se poursuit sans interruption et peut déborder sur le mois suivant.
                 </p>
+              )}
+              {mode === 1 && recuperation && (
+                <p className="mt-2 text-sm text-slate-500">La période se poursuit sans interruption et peut déborder sur le mois suivant.</p>
               )}
             </li>
 
@@ -219,8 +222,8 @@ function DemandeForm({ type }: { type: TypeDemande }) {
                   2ᵉ période
                 </h2>
                 <div className="mt-3">{champsPeriode(choix2, setChoix2, 1)}</div>
-                <p className={`mt-2 text-sm ${total >= 11 ? "text-slate-500" : "font-semibold text-amber-700"}`}>
-                  Total des deux périodes : {total} jours (minimum 11). Les deux périodes forment une seule demande.
+                <p className={`mt-2 text-sm ${recuperation || total >= 11 ? "text-slate-500" : "font-semibold text-amber-700"}`}>
+                  Total des deux périodes : {total} jours{!recuperation && " (minimum 11)"}. Les deux périodes forment une seule demande.
                 </p>
               </li>
             )}

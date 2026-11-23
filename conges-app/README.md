@@ -10,7 +10,7 @@ d'administration (matricule 0568) pour suivre, valider, supprimer et exporter le
 | Acquisition | 2 jours par mois, mois d'embauche compris (règle du tableau RH, vérifiée sur les 206 agents). Le solde gagne +2 jours le 1er de chaque mois. |
 | Solde au départ | Le solde est recalculé **à la date de départ** du vœu : un agent à 6 jours aujourd'hui peut demander 11 jours dans 3 mois. Les vœux déjà déposés sont déduits, dans l'ordre chronologique. |
 | Décompte | Les dimanches et jours fériés sénégalais ne sont pas décomptés (`lib/calendrier.ts`). |
-| Minimum | 11 jours décomptés par demande, départ le 1er ou le 16 du mois, en 1 période continue (qui peut couvrir un mois complet ou plus) ou en 2 périodes distinctes, chacune avec son mois, son départ et sa durée (minimum 11 jours au total). Les demandes de récupération suivent les mêmes règles. Les 2 périodes forment une seule demande pour le délai de 12 mois ; le solde est vérifié au départ de chacune. |
+| Minimum | Congés : 11 jours décomptés par demande, en 1 période continue ou en 2 périodes distinctes (11 jours au total). Récupérations : aucun minimum de jours et aucun délai de 12 mois par rapport aux congés. Dans les deux cas, départ le 1er ou le 16 du mois et solde vérifié à chaque départ. |
 | Déduction | Seuls les jours posés hors dimanches et jours fériés sont déduits du solde ; l'aperçu détaille jours d'absence, dimanches, fériés et solde avant/après. |
 | Grandes fêtes | Sur une même année, un agent ne peut pas être en congé pour la Korité **et** la Tabaski, ni pour le Grand Magal de Touba **et** le Gamou (Maouloud) (congés repris, vœux actifs et nouveau vœu confondus). Les dimanches et fériés collés à une période comptent comme absence. |
 | Ancienneté | Premier congé possible à partir de la date anniversaire d'entrée (12 mois). |
@@ -26,8 +26,9 @@ officiel, puis redéployer.
 
 - **Agent** : solde et évolution mois par mois, premier départ possible, places restantes par
   quinzaine, dépôt d'un vœu ou d'une demande de récupération du solde avec vérification préalable,
-  annulation d'une demande en attente. Les récupérations suivent les mêmes règles et validations
-  que les congés ; elles sont distinguées dans l'espace agent, l'administration et l'export.
+  annulation d'une demande en attente. Les récupérations suivent les règles de solde et de validation,
+  sans minimum de jours ni délai de 12 mois entre congés, et sont distinguées dans l'espace agent,
+  l'administration et l'export.
 - **Admin (0568)** : KPIs (taux de soumission global et par rôle, vœux en attente / validés /
   supprimés, agents sans vœu, moins d'un an, soldes faibles, agents connectés), liste des vœux
   avec validation (unitaire ou en lot) et suppression motivée, liste des agents sans vœu avec

@@ -45,8 +45,8 @@ export const REPERES_LEGAUX_SENEGAL = {
     titre: "Comment ces règles se combinent avec celles du service",
     points: [
       "Le Code du travail fixe des minima individuels (durée acquise, fractionnement) — il ne traite pas de la coordination entre plusieurs agents d'une même équipe.",
-      "Le délai de 12 mois entre deux prises et les plafonds d'absents par quinzaine (agents de vente : 9 du 1er au 15 janvier 2027, puis 16 ; chefs d'équipe : 3) appliqués par cette plateforme sont des règles internes de continuité de service : elles s'ajoutent à la loi, elles ne la remplacent pas et ne peuvent pas réduire les droits légaux d'un agent.",
-      "Le minimum de 11 jours par demande retenu ici est une convention interne de planification ; il reste néanmoins conseillé de couvrir dans l'année le minimum légal de 6 jours consécutifs obligatoires."
+      "Le délai de 12 mois entre deux congés (hors récupérations) et les plafonds d'absents par quinzaine (agents de vente : 9 du 1er au 15 janvier 2027, puis 16 ; chefs d'équipe : 3) appliqués par cette plateforme sont des règles internes de continuité de service : elles s'ajoutent à la loi, elles ne la remplacent pas et ne peuvent pas réduire les droits légaux d'un agent.",
+      "Le minimum de 11 jours par demande de congé retenu ici est une convention interne de planification ; il ne s'applique pas aux récupérations. Il reste néanmoins conseillé de couvrir dans l'année le minimum légal de 6 jours consécutifs obligatoires."
     ]
   }
 } as const;
