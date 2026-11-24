@@ -436,7 +436,7 @@ export default function AdminPage() {
                 <label className="libelle sm:col-span-2">
                   Fin du dernier congé
                   <input type="date" className="champ" value={edition.dernier_conge_fin} onChange={(e) => setEdition({ ...edition, dernier_conge_fin: e.target.value })} />
-                  <span className="mt-1 block font-normal text-slate-500">La période la plus récente sera corrigée et ses jours recalculés. Sans historique détaillé, cette date sert de repère pour le délai de 12 mois. Le cumul des jours pris se modifie séparément.</span>
+                  <span className="mt-1 block font-normal text-slate-500">La période la plus récente sera corrigée et ses jours recalculés. Sans historique détaillé, le mois de cette date sert de repère pour le délai de 12 mois. Le cumul des jours pris se modifie séparément.</span>
                 </label>
               </div>
               {erreurEdition && <Alerte type="erreur" className="mt-4">{erreurEdition}</Alerte>}

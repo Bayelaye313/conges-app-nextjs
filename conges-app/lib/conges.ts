@@ -8,7 +8,7 @@ export type Role = "AV" | "CEV" | "CS";
 export const CONFIG = {
   MIN_DAYS: 11, // jours décomptés (hors dimanches et fériés)
   MAX_DAYS: 90, // garde-fou technique
-  DELAI_MOIS: 12, // entre la fin d'un congé et le début du suivant
+  DELAI_MOIS: 12, // entre les mois de deux congés
   ANCIENNETE_MIN_MOIS: 12, // premier congé possible à la date anniversaire d'entrée
   JOURS_ACQUIS_PAR_MOIS: 2,
   /** Absents simultanés au maximum par jour, par rôle (null = pas de plafond). */
@@ -199,6 +199,11 @@ export function dernierConge(agent: Agent): Conge | null {
   return congesDeLAgent(agent, false).reduce<Conge | null>((max, c) => (!max || c.fin > max.fin ? c : max), null);
 }
 
+function premierJourMoisDelai(fin: string): string {
+  const date = strToDate(fin);
+  return dateToStr(dateUTC(date.getUTCFullYear(), date.getUTCMonth() + 1 + CONFIG.DELAI_MOIS, 1));
+}
+
 /** Prochaine date de départ choisissable (le 1er ou le 16 du mois) à partir de `date`. */
 export function prochainAncrage(date: string): string {
   const [a, m, j] = date.split("-").map(Number);
@@ -208,8 +213,8 @@ export function prochainAncrage(date: string): string {
 
 /**
  * Première date de départ possible (1er ou 16 du mois) : après aujourd'hui,
- * à partir de la date anniversaire d'entrée, et 12 mois après le retour du
- * dernier congé.
+ * à partir de la date anniversaire d'entrée et du premier jour du mois qui
+ * suit le délai de 12 mois calendaires après le dernier congé.
  */
 export function premiereDatePossible(agent: Agent, aujourdHui: Date): string {
   const dernier = dernierConge(agent);
@@ -217,7 +222,7 @@ export function premiereDatePossible(agent: Agent, aujourdHui: Date): string {
     maxStr(
       dateToStr(ajouterJours(aujourdHui, 1)),
       dateAnniversaire(agent),
-      dernier ? dateToStr(ajouterMois(ajouterJours(strToDate(dernier.fin), 1), CONFIG.DELAI_MOIS)) : ""
+      dernier ? premierJourMoisDelai(dernier.fin) : ""
     )
   );
 }
@@ -549,8 +554,8 @@ export function verifierDemande(
     for (const c of congesDeLAgent(agent, false)) {
       const finPrecedent = c.fin < debut ? c.fin : fin;
       const debutSuivant = c.fin < debut ? debut : c.debut;
-      const limite = dateToStr(ajouterMois(ajouterJours(strToDate(finPrecedent), 1), CONFIG.DELAI_MOIS));
-      if (debutSuivant < limite) {
+      const limite = premierJourMoisDelai(finPrecedent);
+      if (debutSuivant.slice(0, 7) < limite.slice(0, 7)) {
         return {
           ok: false,
           message:

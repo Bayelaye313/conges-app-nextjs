@@ -281,10 +281,11 @@ describe("verifierDemande", () => {
     expect(verifierDemande(registre(a), a, periodes(2027, 1, 11, "debut"), AUJOURDHUI).ok).toBe(false);
   });
 
-  it("délai de 12 mois après la date de retour du dernier congé", () => {
+  it("délai de 12 mois calendaires après le mois du dernier congé", () => {
     const a = agent({ historique: [{ debut: "2026-08-17", fin: "2026-08-31", jours: 12 }] });
-    expect(premiereDatePossible(a, AUJOURDHUI)).toBe("2027-09-01");
-    expect(verifierDemande(registre(a), a, periodes(2027, 8, 11, "fin"), AUJOURDHUI).ok).toBe(false);
+    expect(premiereDatePossible(a, AUJOURDHUI)).toBe("2027-08-01");
+    expect(verifierDemande(registre(a), a, periodes(2027, 7, 11, "fin"), AUJOURDHUI).ok).toBe(false);
+    expect(verifierDemande(registre(a), a, periodes(2027, 8, 11, "debut"), AUJOURDHUI).ok).toBe(true);
     expect(verifierDemande(registre(a), a, periodes(2027, 9, 11, "debut"), AUJOURDHUI).ok).toBe(true);
   });
 
@@ -306,21 +307,19 @@ describe("verifierDemande", () => {
       historique: [{ debut: "2026-03-01", fin: "2026-03-15", jours: 12 }],
       demandes: [recovery]
     });
-    expect(premiereDatePossible(a, AUJOURDHUI)).toBe("2027-03-16");
-    expect(verifierDemande(registre(a), a, periodes(2027, 3, 11, "fin"), AUJOURDHUI).ok).toBe(true);
+    expect(premiereDatePossible(a, AUJOURDHUI)).toBe("2027-03-01");
+    expect(verifierDemande(registre(a), a, periodes(2027, 3, 11, "debut"), AUJOURDHUI).ok).toBe(true);
   });
 
-  it("autorise une nouvelle demande dès l'anniversaire des 12 mois après le retour", () => {
+  it("autorise une nouvelle demande dès le même mois, 12 mois plus tard", () => {
     const a = agent({
       jours_pris_reprise: 0,
       historique: [{ debut: "2026-03-01", fin: "2026-03-15", jours: 12 }]
     });
-    const avantAnniversaire = periodes(2027, 3, 11, "debut");
-    const anniversaire = periodes(2027, 3, 11, "fin");
-    expect(anniversaire[0].debut).toBe("2027-03-16");
-    expect(premiereDatePossible(a, AUJOURDHUI)).toBe("2027-03-16");
-    expect(verifierDemande(registre(a), a, avantAnniversaire, AUJOURDHUI).ok).toBe(false);
-    expect(verifierDemande(registre(a), a, anniversaire, AUJOURDHUI).ok).toBe(true);
+    const memeMois = periodes(2027, 3, 11, "debut");
+    expect(memeMois[0].debut).toBe("2027-03-01");
+    expect(premiereDatePossible(a, AUJOURDHUI)).toBe("2027-03-01");
+    expect(verifierDemande(registre(a), a, memeMois, AUJOURDHUI).ok).toBe(true);
   });
 
   it("délai de 12 mois aussi avec un vœu déjà prévu plus tard", () => {
@@ -531,8 +530,9 @@ describe("modification des informations RH par l'administration", () => {
     const a = agent({ historique: [] });
     expect(mettreAJourInfosAgent(a, { ...infos, dernier_conge_fin: "2026-03-31" })).toBeNull();
     expect(a.dernier_conge_fin).toBe("2026-03-31");
-    expect(premiereDatePossible(a, AUJOURDHUI)).toBe("2027-04-01");
-    expect(verifierDemande(registre(a), a, periodes(2027, 3, 11, "debut"), AUJOURDHUI).ok).toBe(false);
+    expect(premiereDatePossible(a, AUJOURDHUI)).toBe("2027-03-01");
+    expect(verifierDemande(registre(a), a, periodes(2027, 2, 11, "debut"), AUJOURDHUI).ok).toBe(false);
+    expect(verifierDemande(registre(a), a, periodes(2027, 3, 11, "debut"), AUJOURDHUI).ok).toBe(true);
   });
 });
 
