@@ -27,7 +27,8 @@ export interface InfosAgentModifiables {
   role: Role;
   date_embauche: string;
   jours_pris_reprise: number;
-  dernier_conge_fin: string | null;
+  dernier_conge_debut: string | null;
+  dernier_conge_retour: string | null;
 }
 
 function chevauche(a: { debut: string; fin: string }, b: { debut: string; fin: string }): boolean {
@@ -40,17 +41,26 @@ export function mettreAJourInfosAgent(agent: Agent, infos: InfosAgentModifiables
     (max, p) => (!max || p.fin > max.fin ? p : max),
     null
   );
-  const fin = infos.dernier_conge_fin;
+  const debut = infos.dernier_conge_debut;
+  const retour = infos.dernier_conge_retour;
+  const fin = retour ? dateToStr(ajouterJours(strToDate(retour), -1)) : null;
 
-  if (dernierePeriode && !fin) {
-    return "La date de fin ne peut pas être vide tant qu'un congé figure dans l'historique.";
+  if (debut && !retour) {
+    return "La date de retour doit être renseignée avec la date de départ.";
   }
-  if (fin) {
-    const periodeModifiee = dernierePeriode
-      ? { debut: dernierePeriode.debut, fin }
-      : { debut: fin, fin };
+  if (dernierePeriode && (!debut || !fin)) {
+    return "Les dates de départ et de retour ne peuvent pas être vides tant qu'un congé figure dans l'historique.";
+  }
+
+  const periodeModifiee = debut && fin
+    ? { debut, fin }
+    : fin
+      ? { debut: fin, fin }
+      : null;
+
+  if (periodeModifiee) {
     if (periodeModifiee.fin < periodeModifiee.debut) {
-      return "La date de fin ne peut pas précéder le début du congé.";
+      return "La date de retour doit être postérieure à la date de départ.";
     }
 
     const autresPeriodes = [
@@ -70,9 +80,17 @@ export function mettreAJourInfosAgent(agent: Agent, infos: InfosAgentModifiables
   agent.date_embauche = infos.date_embauche;
   agent.jours_pris_reprise = infos.jours_pris_reprise;
 
-  if (dernierePeriode && fin) {
-    dernierePeriode.fin = fin;
-    dernierePeriode.jours = compterJoursDecomptes(dernierePeriode.debut, fin);
+  if (dernierePeriode && periodeModifiee && debut) {
+    dernierePeriode.debut = periodeModifiee.debut;
+    dernierePeriode.fin = periodeModifiee.fin;
+    dernierePeriode.jours = compterJoursDecomptes(dernierePeriode.debut, periodeModifiee.fin);
+    delete agent.dernier_conge_fin;
+  } else if (periodeModifiee && debut && fin) {
+    agent.historique.push({
+      debut,
+      fin,
+      jours: compterJoursDecomptes(debut, fin)
+    });
     delete agent.dernier_conge_fin;
   } else {
     agent.dernier_conge_fin = fin;
@@ -92,6 +110,7 @@ export interface LigneAgent {
   date_anniversaire: string;
   solde: number;
   dernier_conge_fin: string | null;
+  dernier_conge_historique_debut: string | null;
   dernier_conge_historique_fin: string | null;
   premiere_date_possible: string;
   solde_a_cette_date: number;
@@ -148,6 +167,10 @@ export function construireSynthese(registre: Registre, aujourdHui: Date): Synthe
     .map((a) => {
       const premiere = premiereDatePossible(a, aujourdHui);
       const actifs = demandesActives(a);
+      const derniereHistorique = a.historique.reduce<(typeof a.historique)[number] | null>(
+        (max, p) => (!max || p.fin > max.fin ? p : max),
+        null
+      );
       return {
         matricule: a.matricule,
         prenom: a.prenom,
@@ -160,10 +183,8 @@ export function construireSynthese(registre: Registre, aujourdHui: Date): Synthe
         date_anniversaire: dateAnniversaire(a),
         solde: solde(a, aujourdHui),
         dernier_conge_fin: dernierConge(a)?.fin ?? null,
-        dernier_conge_historique_fin:
-          a.historique.reduce<string | null>((max, p) => (!max || p.fin > max ? p.fin : max), null) ??
-          a.dernier_conge_fin ??
-          null,
+        dernier_conge_historique_debut: derniereHistorique?.debut ?? null,
+        dernier_conge_historique_fin: derniereHistorique?.fin ?? a.dernier_conge_fin ?? null,
         premiere_date_possible: premiere,
         solde_a_cette_date: solde(a, strToDate(premiere)),
         date_solde_suffisant: dateSoldeSuffisant(a, premiere),

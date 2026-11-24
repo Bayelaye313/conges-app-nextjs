@@ -493,12 +493,13 @@ describe("modification des informations RH par l'administration", () => {
     role: "AV" as const,
     date_embauche: "2024-01-08",
     jours_pris_reprise: 20,
-    dernier_conge_fin: "2027-03-15"
+    dernier_conge_debut: "2027-03-01",
+    dernier_conge_retour: "2027-03-16"
   };
 
   it("met à jour les données et recalcule les jours d'une période historique", () => {
     const a = agent({
-      historique: [{ debut: "2027-03-01", fin: "2027-03-12", jours: 10 }],
+      historique: [{ debut: "2027-02-25", fin: "2027-03-12", jours: 12 }],
       auth: { hash: "conserve", doit_changer: false, modifie_le: "2026-01-01T00:00:00.000Z" }
     });
 
@@ -528,11 +529,43 @@ describe("modification des informations RH par l'administration", () => {
 
   it("utilise une date repère lorsqu'aucune période historique détaillée n'existe", () => {
     const a = agent({ historique: [] });
-    expect(mettreAJourInfosAgent(a, { ...infos, dernier_conge_fin: "2026-03-31" })).toBeNull();
+    expect(
+      mettreAJourInfosAgent(a, {
+        ...infos,
+        dernier_conge_debut: null,
+        dernier_conge_retour: "2026-04-01"
+      })
+    ).toBeNull();
     expect(a.dernier_conge_fin).toBe("2026-03-31");
     expect(premiereDatePossible(a, AUJOURDHUI)).toBe("2027-03-01");
     expect(verifierDemande(registre(a), a, periodes(2027, 2, 11, "debut"), AUJOURDHUI).ok).toBe(false);
     expect(verifierDemande(registre(a), a, periodes(2027, 3, 11, "debut"), AUJOURDHUI).ok).toBe(true);
+  });
+
+  it("crée un historique détaillé quand les deux dates sont renseignées", () => {
+    const a = agent({ historique: [], dernier_conge_fin: "2026-03-31" });
+    expect(
+      mettreAJourInfosAgent(a, {
+        ...infos,
+        dernier_conge_debut: "2026-03-01",
+        dernier_conge_retour: "2026-04-01"
+      })
+    ).toBeNull();
+    expect(a.historique).toEqual([{ debut: "2026-03-01", fin: "2026-03-31", jours: 25 }]);
+    expect(a.dernier_conge_fin).toBeUndefined();
+  });
+
+  it("refuse une date de retour antérieure au départ sans modifier l'agent", () => {
+    const a = agent({ prenom: "Avant", historique: [] });
+    expect(
+      mettreAJourInfosAgent(a, {
+        ...infos,
+        dernier_conge_debut: "2027-03-20",
+        dernier_conge_retour: "2027-03-16"
+      })
+    ).toContain("postérieure");
+    expect(a.prenom).toBe("Avant");
+    expect(a.historique).toEqual([]);
   });
 });
 

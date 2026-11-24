@@ -20,7 +20,8 @@ const Corps = z.object({
   role: z.enum(["AV", "CEV", "CS"]),
   date_embauche: dateISO,
   jours_pris_reprise: z.number().int().min(0).max(9999),
-  dernier_conge_fin: dateISO.nullable()
+  dernier_conge_debut: dateISO.nullable(),
+  dernier_conge_retour: dateISO.nullable()
 }).strict();
 
 /** Mise à jour des informations RH d'un agent par l'administration. */

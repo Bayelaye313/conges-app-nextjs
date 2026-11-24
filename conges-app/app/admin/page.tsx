@@ -68,6 +68,7 @@ interface LigneAgent {
   date_anniversaire: string;
   solde: number;
   dernier_conge_fin: string | null;
+  dernier_conge_historique_debut: string | null;
   dernier_conge_historique_fin: string | null;
   premiere_date_possible: string;
   solde_a_cette_date: number;
@@ -121,7 +122,8 @@ interface EditionAgent {
   role: Role;
   date_embauche: string;
   jours_pris_reprise: string;
-  dernier_conge_fin: string;
+  dernier_conge_debut: string;
+  dernier_conge_retour: string;
 }
 
 function correspond(recherche: string, ...champs: string[]) {
@@ -218,7 +220,8 @@ export default function AdminPage() {
       role: a.role,
       date_embauche: a.date_embauche,
       jours_pris_reprise: String(a.jours_pris_reprise),
-      dernier_conge_fin: a.dernier_conge_historique_fin ?? ""
+      dernier_conge_debut: a.dernier_conge_historique_debut ?? "",
+      dernier_conge_retour: a.dernier_conge_historique_fin ? dateRetour(a.dernier_conge_historique_fin) : ""
     });
     setErreurEdition("");
   }
@@ -232,7 +235,8 @@ export default function AdminPage() {
       const { data } = await appelApi(router, "/api/admin/agents", {
         ...edition,
         jours_pris_reprise: Number(edition.jours_pris_reprise),
-        dernier_conge_fin: edition.dernier_conge_fin || null
+        dernier_conge_debut: edition.dernier_conge_debut || null,
+        dernier_conge_retour: edition.dernier_conge_retour || null
       });
       if (!data.ok) {
         setErreurEdition(data.message ?? "La mise à jour a échoué.");
@@ -433,11 +437,17 @@ export default function AdminPage() {
                   Jours pris (cumul)
                   <input required type="number" min={0} max={9999} step={1} className="champ" value={edition.jours_pris_reprise} onChange={(e) => setEdition({ ...edition, jours_pris_reprise: e.target.value })} />
                 </label>
-                <label className="libelle sm:col-span-2">
-                  Fin du dernier congé
-                  <input type="date" className="champ" value={edition.dernier_conge_fin} onChange={(e) => setEdition({ ...edition, dernier_conge_fin: e.target.value })} />
-                  <span className="mt-1 block font-normal text-slate-500">La période la plus récente sera corrigée et ses jours recalculés. Sans historique détaillé, le mois de cette date sert de repère pour le délai de 12 mois. Le cumul des jours pris se modifie séparément.</span>
+                <label className="libelle">
+                  Départ du dernier congé
+                  <input type="date" className="champ" value={edition.dernier_conge_debut} onChange={(e) => setEdition({ ...edition, dernier_conge_debut: e.target.value })} />
                 </label>
+                <label className="libelle">
+                  Retour au travail
+                  <input type="date" className="champ" value={edition.dernier_conge_retour} onChange={(e) => setEdition({ ...edition, dernier_conge_retour: e.target.value })} />
+                </label>
+                <p className="text-sm font-normal text-slate-500 sm:col-span-2">
+                  La période la plus récente sera corrigée et ses jours recalculés. Sans historique détaillé, indiquez les deux dates pour créer la période de référence. Le cumul des jours pris se modifie séparément.
+                </p>
               </div>
               {erreurEdition && <Alerte type="erreur" className="mt-4">{erreurEdition}</Alerte>}
               <div className="mt-6 flex justify-end gap-2">
