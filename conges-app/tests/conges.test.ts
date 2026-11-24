@@ -289,6 +289,13 @@ describe("verifierDemande", () => {
     expect(verifierDemande(registre(a), a, periodes(2027, 9, 11, "debut"), AUJOURDHUI).ok).toBe(true);
   });
 
+  it("référence le mois de départ même si le congé se termine le mois suivant", () => {
+    const a = agent({ historique: [{ debut: "2026-05-11", fin: "2026-06-02", jours: 16 }] });
+    expect(premiereDatePossible(a, AUJOURDHUI)).toBe("2027-05-01");
+    expect(verifierDemande(registre(a), a, periodes(2027, 4, 11, "fin"), AUJOURDHUI).ok).toBe(false);
+    expect(verifierDemande(registre(a), a, periodes(2027, 5, 11, "debut"), AUJOURDHUI).ok).toBe(true);
+  });
+
   it("les récupérations sont indépendantes du délai depuis le dernier congé", () => {
     const a = agent({
       jours_pris_reprise: 0,

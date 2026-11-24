@@ -199,8 +199,8 @@ export function dernierConge(agent: Agent): Conge | null {
   return congesDeLAgent(agent, false).reduce<Conge | null>((max, c) => (!max || c.fin > max.fin ? c : max), null);
 }
 
-function premierJourMoisDelai(fin: string): string {
-  const date = strToDate(fin);
+function premierJourMoisDelai(debut: string): string {
+  const date = strToDate(debut);
   return dateToStr(dateUTC(date.getUTCFullYear(), date.getUTCMonth() + 1 + CONFIG.DELAI_MOIS, 1));
 }
 
@@ -214,7 +214,7 @@ export function prochainAncrage(date: string): string {
 /**
  * Première date de départ possible (1er ou 16 du mois) : après aujourd'hui,
  * à partir de la date anniversaire d'entrée et du premier jour du mois qui
- * suit le délai de 12 mois calendaires après le dernier congé.
+ * marque les 12 mois calendaires depuis le départ du dernier congé.
  */
 export function premiereDatePossible(agent: Agent, aujourdHui: Date): string {
   const dernier = dernierConge(agent);
@@ -222,7 +222,7 @@ export function premiereDatePossible(agent: Agent, aujourdHui: Date): string {
     maxStr(
       dateToStr(ajouterJours(aujourdHui, 1)),
       dateAnniversaire(agent),
-      dernier ? premierJourMoisDelai(dernier.fin) : ""
+      dernier ? premierJourMoisDelai(dernier.debut) : ""
     )
   );
 }
@@ -529,7 +529,6 @@ export function verifierDemande(
 ): Verif {
   if (periodes.length === 0) return { ok: false, message: "Aucune date sélectionnée." };
   const debut = periodes[0].debut;
-  const fin = periodes[periodes.length - 1].fin;
 
   if (debut <= dateToStr(aujourdHui)) {
     return { ok: false, message: "⛔ La date de départ doit être postérieure à aujourd'hui." };
@@ -552,15 +551,15 @@ export function verifierDemande(
   if (type === "conge") {
     // Le délai de 12 mois lie les congés entre eux, mais pas les récupérations.
     for (const c of congesDeLAgent(agent, false)) {
-      const finPrecedent = c.fin < debut ? c.fin : fin;
+      const debutPrecedent = c.fin < debut ? c.debut : debut;
       const debutSuivant = c.fin < debut ? debut : c.debut;
-      const limite = premierJourMoisDelai(finPrecedent);
+      const limite = premierJourMoisDelai(debutPrecedent);
       if (debutSuivant.slice(0, 7) < limite.slice(0, 7)) {
         return {
           ok: false,
           message:
             c.fin < debut
-              ? `⛔ Délai de ${CONFIG.DELAI_MOIS} mois non respecté : votre dernier congé finit le ${formatFr(c.fin)}, prochain départ possible le ${formatFr(limite)}.`
+              ? `⛔ Délai de ${CONFIG.DELAI_MOIS} mois non respecté : votre dernier congé a débuté le ${formatFr(c.debut)}, prochain départ possible le ${formatFr(limite)}.`
               : `⛔ Délai de ${CONFIG.DELAI_MOIS} mois non respecté avec votre congé prévu le ${formatFr(c.debut)}.`
         };
       }
