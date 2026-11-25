@@ -597,6 +597,119 @@ export interface ResultatAction {
   message: string;
 }
 
+/** Change le type d'une demande active et la remet en attente de validation. */
+export function changerTypeDemande(
+  registre: Registre,
+  matricule: string,
+  id: string,
+  typeCible: TypeDemande,
+  aujourdHui: Date = aujourdhuiUTC()
+): ResultatAction {
+  const agent = trouverAgent(registre, matricule);
+  if (!agent) return { succes: false, message: "❌ Agent introuvable." };
+
+  const demande = agent.demandes.find((d) => d.id === id);
+  if (!demande) return { succes: false, message: "Vœu introuvable." };
+  if (demande.statut === "supprime") return { succes: false, message: "Ce vœu est déjà supprimé." };
+  if ((demande.type ?? "conge") === typeCible) {
+    return { succes: false, message: `Cette demande est déjà de type ${typeCible === "conge" ? "congé" : "récupération"}.` };
+  }
+
+  const jours = demande.periodes.reduce((total, periode) => total + periode.jours, 0);
+  if (typeCible === "conge" && jours < CONFIG.MIN_DAYS) {
+    return {
+      succes: false,
+      message: `❌ Cette demande compte ${jours} jours; le minimum pour un congé est de ${CONFIG.MIN_DAYS} jours.`
+    };
+  }
+  if (jours > CONFIG.MAX_DAYS) {
+    return { succes: false, message: `❌ Une demande ne peut pas dépasser ${CONFIG.MAX_DAYS} jours.` };
+  }
+
+  const agentVerifie: Agent = {
+    ...agent,
+    demandes: agent.demandes.filter((d) => d.id !== id)
+  };
+  const registreVerifie: Registre = {
+    ...registre,
+    agents: { ...registre.agents, [matricule]: agentVerifie }
+  };
+  const verification = verifierDemande(registreVerifie, agentVerifie, demande.periodes, aujourdHui, typeCible);
+  if (!verification.ok) return { succes: false, message: verification.message };
+
+  demande.type = typeCible;
+  demande.statut = "en_attente";
+  delete demande.traite_le;
+  delete demande.traite_par;
+  delete demande.motif;
+  return {
+    succes: true,
+    message: `Demande passée en ${typeCible === "conge" ? "congé" : "récupération"} et remise en attente de validation.`
+  };
+}
+
+/** Scinde une récupération à deux périodes et convertit l'une d'elles en congé. */
+export function scinderRecuperationEnConge(
+  registre: Registre,
+  matricule: string,
+  id: string,
+  periodeIndex: number,
+  aujourdHui: Date = aujourdhuiUTC()
+): ResultatAction {
+  const agent = trouverAgent(registre, matricule);
+  if (!agent) return { succes: false, message: "❌ Agent introuvable." };
+
+  const demande = agent.demandes.find((d) => d.id === id);
+  if (!demande) return { succes: false, message: "Vœu introuvable." };
+  if (demande.statut === "supprime") return { succes: false, message: "Ce vœu est déjà supprimé." };
+  if (demande.type !== "recuperation" || demande.periodes.length !== 2) {
+    return { succes: false, message: "Seule une récupération composée de deux périodes peut être scindée." };
+  }
+  if (!Number.isInteger(periodeIndex) || periodeIndex < 0 || periodeIndex > 1) {
+    return { succes: false, message: "Sélectionnez une période valide à convertir." };
+  }
+
+  const periodeConge = demande.periodes[periodeIndex];
+  if (periodeConge.jours < CONFIG.MIN_DAYS) {
+    return {
+      succes: false,
+      message: `❌ Cette période compte ${periodeConge.jours} jours; le minimum pour un congé est de ${CONFIG.MIN_DAYS} jours.`
+    };
+  }
+  if (periodeConge.jours > CONFIG.MAX_DAYS) {
+    return { succes: false, message: `❌ Un congé ne peut pas dépasser ${CONFIG.MAX_DAYS} jours.` };
+  }
+
+  const periodeRecuperation = demande.periodes[1 - periodeIndex];
+  const agentVerifie: Agent = {
+    ...agent,
+    demandes: agent.demandes.map((d) =>
+      d.id === id ? { ...d, periodes: [periodeRecuperation], jours: periodeRecuperation.jours } : d
+    )
+  };
+  const registreVerifie: Registre = {
+    ...registre,
+    agents: { ...registre.agents, [matricule]: agentVerifie }
+  };
+  const verification = verifierDemande(registreVerifie, agentVerifie, [periodeConge], aujourdHui, "conge");
+  if (!verification.ok) return { succes: false, message: verification.message };
+
+  demande.periodes = [periodeRecuperation];
+  demande.jours = periodeRecuperation.jours;
+  agent.demandes.push({
+    id: randomUUID(),
+    type: "conge",
+    periodes: [periodeConge],
+    jours: periodeConge.jours,
+    statut: "en_attente",
+    cree_le: new Date().toISOString()
+  });
+  return {
+    succes: true,
+    message: "Récupération scindée : la période choisie est devenue une demande de congé en attente; l'autre reste une récupération."
+  };
+}
+
 export function soumettreDemande(
   matricule: string,
   periodes: Periode[],
@@ -640,10 +753,27 @@ export function traiterDemande(
   admin: string,
   matricule: string,
   id: string,
-  action: "valider" | "supprimer",
-  motif?: string
+  action: "valider" | "supprimer" | "scinder_recuperation" | "changer_type",
+  motif?: string,
+  periodeIndex?: number,
+  typeCible?: TypeDemande
 ): Promise<ResultatAction> {
   return modifierDocument<Registre, ResultatAction>((registre) => {
+    if (action === "scinder_recuperation") {
+      if (periodeIndex === undefined) {
+        return { ecrire: false, resultat: { succes: false, message: "Sélectionnez une période à convertir." } };
+      }
+      const resultat = scinderRecuperationEnConge(registre, matricule, id, periodeIndex);
+      return { ecrire: resultat.succes, resultat };
+    }
+    if (action === "changer_type") {
+      if (!typeCible) {
+        return { ecrire: false, resultat: { succes: false, message: "Sélectionnez le nouveau type de demande." } };
+      }
+      const resultat = changerTypeDemande(registre, matricule, id, typeCible);
+      return { ecrire: resultat.succes, resultat };
+    }
+
     const demande = trouverAgent(registre, matricule)?.demandes.find((d) => d.id === id);
     if (!demande) return { ecrire: false, resultat: { succes: false, message: "Vœu introuvable." } };
     if (demande.statut === "supprime") return { ecrire: false, resultat: { succes: false, message: "Ce vœu est déjà supprimé." } };
@@ -671,6 +801,8 @@ export interface AgentPublic {
   date_anniversaire: string;
   anciennete_mois: number;
   jours_acquis: number;
+  jours_pris_cumules: number;
+  jours_reserves: number;
   jours_pris: number;
   solde: number;
   premiere_date_possible: string;
@@ -682,6 +814,7 @@ export interface AgentPublic {
 
 export function vuePublique(agent: Agent, aujourdHui: Date): AgentPublic {
   const premiere = premiereDatePossible(agent, aujourdHui);
+  const joursReserves = demandesActives(agent).reduce((s, d) => s + d.jours, 0);
   const projection = Array.from({ length: 12 }, (_, i) => {
     const d = dateUTC(aujourdHui.getUTCFullYear(), aujourdHui.getUTCMonth() + 2 + i, 1);
     return { mois: dateToStr(d), solde: solde(agent, d) };
@@ -696,6 +829,8 @@ export function vuePublique(agent: Agent, aujourdHui: Date): AgentPublic {
     date_anniversaire: dateAnniversaire(agent),
     anciennete_mois: moisDeService(agent.date_embauche, aujourdHui),
     jours_acquis: joursAcquis(agent.date_embauche, aujourdHui),
+    jours_pris_cumules: agent.jours_pris_reprise,
+    jours_reserves: joursReserves,
     jours_pris: joursPris(agent),
     solde: solde(agent, aujourdHui),
     premiere_date_possible: premiere,

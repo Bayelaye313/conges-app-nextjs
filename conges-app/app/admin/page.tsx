@@ -177,6 +177,53 @@ export default function AdminPage() {
     setEnCours(null);
   }
 
+  async function convertirPeriodeRecuperation(d: LigneDemande, periodeIndex: number) {
+    const periode = d.periodes[periodeIndex];
+    if (!periode) return;
+    const confirmer = window.confirm(
+      `Scinder la récupération de ${d.prenom} ${d.nom} ? La période du ${formatFr(periode.debut)} au ${formatFr(dateRetour(periode.fin))} deviendra un congé, avec les règles habituelles (minimum de 11 jours, délai, solde et plafond). L'autre période restera une récupération. Le congé sera soumis à validation.`
+    );
+    if (!confirmer) return;
+
+    setEnCours(d.id);
+    try {
+      const { data } = await appelApi(router, "/api/admin/demandes", {
+        matricule: d.matricule,
+        id: d.id,
+        action: "scinder_recuperation",
+        periodeIndex
+      });
+      setMessage(`${d.matricule} — ${data.message}`);
+      charger();
+    } catch (err) {
+      if (!(err instanceof RedirectionEnCours)) setMessage((err as Error).message);
+    }
+    setEnCours(null);
+  }
+
+  async function changerTypeSoumission(d: LigneDemande) {
+    const typeCible = (d.type ?? "conge") === "recuperation" ? "conge" : "recuperation";
+    const libelleCible = typeCible === "conge" ? "congé" : "récupération";
+    if (!window.confirm(
+      `Passer cette demande en ${libelleCible} ? Les dates seront conservées et vérifiées selon les règles de ce type. Elle repassera en attente de validation.`
+    )) return;
+
+    setEnCours(d.id);
+    try {
+      const { data } = await appelApi(router, "/api/admin/demandes", {
+        matricule: d.matricule,
+        id: d.id,
+        action: "changer_type",
+        typeCible
+      });
+      setMessage(`${d.matricule} — ${data.message}`);
+      charger();
+    } catch (err) {
+      if (!(err instanceof RedirectionEnCours)) setMessage((err as Error).message);
+    }
+    setEnCours(null);
+  }
+
   async function validerTout(liste: LigneDemande[]) {
     const aValider = liste.filter((d) => d.statut === "en_attente");
     if (!aValider.length || !window.confirm(`Valider les ${aValider.length} vœux en attente affichés ?`)) return;
@@ -535,8 +582,21 @@ export default function AdminPage() {
                           </span>
                         </td>
                         <td className={cellule}>
-                          {d.periodes.map((p) => (
-                            <div key={p.debut} className="font-medium text-slate-900">{formatFr(p.debut)} → {formatFr(dateRetour(p.fin))}</div>
+                          {d.periodes.map((p, index) => (
+                            <div key={p.debut} className="flex flex-wrap items-center gap-1 font-medium text-slate-900">
+                              <span>{formatFr(p.debut)} → {formatFr(dateRetour(p.fin))}</span>
+                              {d.type === "recuperation" && d.periodes.length === 2 && d.statut !== "supprime" && (
+                                <Bouton
+                                  variante="fantome"
+                                  taille="sm"
+                                  className="h-auto px-2 py-1 text-xs text-brand-700"
+                                  disabled={enCours !== null}
+                                  onClick={() => convertirPeriodeRecuperation(d, index)}
+                                >
+                                  Convertir en congé
+                                </Bouton>
+                              )}
+                            </div>
                           ))}
                         </td>
                         <td className={`${cellule} font-semibold text-slate-900`}>{d.jours}</td>
@@ -553,9 +613,19 @@ export default function AdminPage() {
                               </Bouton>
                             )}
                             {d.statut !== "supprime" && (
-                              <Bouton variante="danger" taille="sm" disabled={enCours !== null} onClick={() => traiter(d, "supprimer")} title="Supprimer">
-                                <Trash2 className="h-4 w-4" aria-hidden />
-                              </Bouton>
+                              <>
+                                <Bouton
+                                  variante="secondaire"
+                                  taille="sm"
+                                  disabled={enCours !== null}
+                                  onClick={() => changerTypeSoumission(d)}
+                                >
+                                  Passer en {(d.type ?? "conge") === "recuperation" ? "congé" : "récupération"}
+                                </Bouton>
+                                <Bouton variante="danger" taille="sm" disabled={enCours !== null} onClick={() => traiter(d, "supprimer")} title="Supprimer">
+                                  <Trash2 className="h-4 w-4" aria-hidden />
+                                </Bouton>
+                              </>
                             )}
                           </div>
                         </td>

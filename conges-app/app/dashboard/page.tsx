@@ -62,6 +62,8 @@ interface Agent {
   date_anniversaire: string;
   anciennete_mois: number;
   jours_acquis: number;
+  jours_pris_cumules: number;
+  jours_reserves: number;
   jours_pris: number;
   solde: number;
   premiere_date_possible: string;
@@ -167,7 +169,7 @@ export default function DashboardPage() {
             icone={Wallet}
             ton={agent.solde < 0 ? "rose" : "brand"}
             valeur={<span className={agent.solde < 0 ? "text-rose-600" : ""}>{agent.solde} <span className="text-base font-semibold text-slate-400">jours</span></span>}
-            detail={`${agent.jours_acquis} acquis − ${agent.jours_pris} pris · +2 j chaque mois`}
+            detail={`${agent.jours_acquis} acquis − (${agent.jours_pris_cumules} pris + ${agent.jours_reserves} réservés) · +2 j chaque mois`}
           />
           <Indicateur
             titre="Ancienneté"

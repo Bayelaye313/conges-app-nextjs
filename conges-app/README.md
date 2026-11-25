@@ -8,7 +8,7 @@ d'administration (matricule 0568) pour suivre, valider, supprimer et exporter le
 | Règle | Détail |
 |---|---|
 | Acquisition | 2 jours par mois, mois d'embauche compris (règle du tableau RH, vérifiée sur les 206 agents). Le solde gagne +2 jours le 1er de chaque mois. |
-| Solde au départ | Le solde est recalculé **à la date de départ** du vœu : un agent à 6 jours aujourd'hui peut demander 11 jours dans 3 mois. Les vœux déjà déposés sont déduits, dans l'ordre chronologique. |
+| Solde au départ | Le solde est recalculé **à la date de départ** du vœu : un agent à 6 jours aujourd'hui peut demander 11 jours dans 3 mois. Les vœux déjà déposés sont déduits dans l'ordre chronologique; le tableau de bord distingue le cumul RH des jours réservés par les demandes actives. |
 | Décompte | Les dimanches et jours fériés sénégalais ne sont pas décomptés (`lib/calendrier.ts`). |
 | Minimum | Congés : 11 jours décomptés par demande, en 1 période continue ou en 2 périodes distinctes (11 jours au total). Récupérations : aucun minimum de jours et aucun délai de 12 mois par rapport aux congés. Dans les deux cas, départ le 1er ou le 16 du mois et solde vérifié à chaque départ. |
 | Déduction | Seuls les jours posés hors dimanches et jours fériés sont déduits du solde ; l'aperçu détaille jours d'absence, dimanches, fériés et solde avant/après. |
@@ -31,7 +31,9 @@ officiel, puis redéployer.
   l'administration et l'export.
 - **Admin (0568)** : KPIs (taux de soumission global et par rôle, vœux en attente / validés /
   supprimés, agents sans vœu, moins d'un an, soldes faibles, agents connectés), liste des vœux
-  avec validation (unitaire ou en lot) et suppression motivée, liste des agents sans vœu avec
+  avec validation (unitaire ou en lot) et suppression motivée, changement du type d'une demande
+  (congé / récupération, avec revalidation), scission d'une récupération à deux périodes en deux demandes
+  distinctes avec conversion d'une période en congé, liste des agents sans vœu avec
   la date à laquelle leur solde atteint 11 jours, modification des informations RH d'un agent
   (matricule, identité, fonction, rôle, date d'embauche, cumul des jours pris et dernier congé), occupation par quinzaine et par rôle,
   génération d'un nouveau code pour un agent, exports CSV (vœux, agents) et sauvegarde JSON.

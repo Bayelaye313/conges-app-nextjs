@@ -3,18 +3,21 @@ import path from "path";
 import { describe, expect, it } from "vitest";
 import {
   ajouterMois,
+  changerTypeDemande,
   construirePeriodes,
   dateToStr,
   joursAcquis,
   occupationParQuinzaine,
   premiereDatePossible,
   projeterSolde,
+  scinderRecuperationEnConge,
   solde,
   strToDate,
   trouverAgent,
   verifierDemande,
   verifierFetesMajeures,
   verifierPlafond,
+  vuePublique,
   type Agent,
   type Demande,
   type Periode,
@@ -167,6 +170,111 @@ describe("construirePeriodes", () => {
     // 1er mars + 15 jours décomptés déborde après le 16
     expect(construirePeriodes([c(2027, 3, "debut", 15), c(2027, 3, "fin", 6)]).status).toBe("erreur");
     expect(construirePeriodes([c(2027, 3, "debut", 6), c(2027, 3, "fin", 6)]).status).toBe("ok");
+  });
+});
+
+describe("scinderRecuperationEnConge", () => {
+  function recuperationDeuxParties(joursPremiere: number, joursSeconde: number): Demande {
+    const resultat = construirePeriodes([
+      { annee: 2027, mois: 3, partie: "debut", nbJours: joursPremiere },
+      { annee: 2027, mois: 9, partie: "debut", nbJours: joursSeconde }
+    ], "recuperation");
+    if (resultat.status !== "ok") throw new Error(resultat.message);
+    return { ...demande(resultat.periodes), type: "recuperation" };
+  }
+
+  it("sépare en deux demandes et laisse le congé en attente", () => {
+    const recuperation = recuperationDeuxParties(11, 1);
+    const [periodeConge, periodeRecuperation] = recuperation.periodes;
+    const a = agent({ demandes: [recuperation] });
+    const r = scinderRecuperationEnConge(registre(a), a.matricule, recuperation.id, 0, AUJOURDHUI);
+
+    expect(r.succes).toBe(true);
+    expect(a.demandes).toHaveLength(2);
+    expect(a.demandes[0]).toMatchObject({
+      type: "recuperation",
+      periodes: [periodeRecuperation],
+      jours: 1,
+      statut: "en_attente"
+    });
+    expect(a.demandes[1]).toMatchObject({
+      type: "conge",
+      periodes: [periodeConge],
+      jours: 11,
+      statut: "en_attente"
+    });
+  });
+
+  it("refuse de convertir une partie sous le minimum sans modifier la demande", () => {
+    const recuperation = recuperationDeuxParties(1, 11);
+    const a = agent({ demandes: [recuperation] });
+    const r = scinderRecuperationEnConge(registre(a), a.matricule, recuperation.id, 0, AUJOURDHUI);
+
+    expect(r.succes).toBe(false);
+    expect(a.demandes).toEqual([recuperation]);
+  });
+
+  it("applique le délai habituel des congés à la partie convertie", () => {
+    const recuperation = recuperationDeuxParties(11, 1);
+    const a = agent({
+      historique: [{ debut: "2026-05-01", fin: "2026-05-15", jours: 11 }],
+      demandes: [recuperation]
+    });
+    const r = scinderRecuperationEnConge(registre(a), a.matricule, recuperation.id, 0, AUJOURDHUI);
+
+    expect(r.succes).toBe(false);
+    expect(r.message).toContain("Délai de 12 mois");
+    expect(a.demandes).toEqual([recuperation]);
+  });
+});
+
+describe("changerTypeDemande", () => {
+  it("convertit une récupération en congé selon le minimum global des deux périodes", () => {
+    const resultat = construirePeriodes([
+      { annee: 2027, mois: 3, partie: "debut", nbJours: 6 },
+      { annee: 2027, mois: 9, partie: "debut", nbJours: 5 }
+    ], "recuperation");
+    if (resultat.status !== "ok") throw new Error(resultat.message);
+    const demandeInitiale = {
+      ...demande(resultat.periodes, "valide"),
+      type: "recuperation" as const,
+      traite_par: "0568",
+      traite_le: "2026-11-02T00:00:00.000Z"
+    };
+    const a = agent({ demandes: [demandeInitiale] });
+    const r = changerTypeDemande(registre(a), a.matricule, demandeInitiale.id, "conge", AUJOURDHUI);
+
+    expect(r.succes).toBe(true);
+    expect(a.demandes[0]).toMatchObject({ type: "conge", statut: "en_attente", periodes: resultat.periodes });
+    expect(a.demandes[0].traite_par).toBeUndefined();
+    expect(a.demandes[0].traite_le).toBeUndefined();
+  });
+
+  it("refuse un congé inférieur au minimum sans modifier la demande", () => {
+    const resultat = construirePeriodes(
+      [{ annee: 2027, mois: 3, partie: "debut", nbJours: 1 }],
+      "recuperation"
+    );
+    if (resultat.status !== "ok") throw new Error(resultat.message);
+    const demandeInitiale = { ...demande(resultat.periodes), type: "recuperation" as const };
+    const a = agent({ demandes: [demandeInitiale] });
+    const r = changerTypeDemande(registre(a), a.matricule, demandeInitiale.id, "conge", AUJOURDHUI);
+
+    expect(r.succes).toBe(false);
+    expect(a.demandes[0]).toEqual(demandeInitiale);
+  });
+
+  it("convertit un congé en récupération et remet la demande en attente", () => {
+    const demandeInitiale = demande(periodes(2027, 3, 11, "debut"), "valide");
+    const a = agent({ demandes: [demandeInitiale] });
+    const r = changerTypeDemande(registre(a), a.matricule, demandeInitiale.id, "recuperation", AUJOURDHUI);
+
+    expect(r.succes).toBe(true);
+    expect(a.demandes[0]).toMatchObject({
+      type: "recuperation",
+      statut: "en_attente",
+      periodes: demandeInitiale.periodes
+    });
   });
 });
 
@@ -449,6 +557,22 @@ describe("verifierDemande", () => {
 });
 
 describe("occupation et synthèse admin", () => {
+  it("distingue le cumul RH des jours réservés par les demandes actives", () => {
+    const a = agent({
+      jours_pris_reprise: 48,
+      demandes: [
+        demande([{ debut: "2027-01-01", fin: "2027-02-04", jours: 25 }]),
+        demande([{ debut: "2027-03-01", fin: "2027-03-14", jours: 10 }], "supprime")
+      ]
+    });
+
+    expect(vuePublique(a, AUJOURDHUI)).toMatchObject({
+      jours_pris_cumules: 48,
+      jours_reserves: 25,
+      jours_pris: 73
+    });
+  });
+
   it("compte le pic d'absents par quinzaine et par rôle", () => {
     const r = registre(agent({ demandes: [demande([{ debut: "2027-03-10", fin: "2027-03-20", jours: 9 }])] }));
     const occ = occupationParQuinzaine(r, "AV", "2027-03-01", 3);
