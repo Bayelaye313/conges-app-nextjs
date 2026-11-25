@@ -246,7 +246,12 @@ function DemandeForm({ type }: { type: TypeDemande }) {
             </Alerte>
           )}
 
-          {erreur && <Alerte type="erreur" className="mt-5">{erreur}</Alerte>}
+          {erreur && (
+            <Alerte type="erreur" className="mt-5">
+              <p className="font-semibold">Échec de la vérification</p>
+              <p className="mt-1">{erreur}</p>
+            </Alerte>
+          )}
 
           {!apercu && !resultat?.succes && (
             <Bouton variante="secondaire" taille="lg" onClick={() => envoyer(false)} disabled={chargement} className="mt-6 w-full">
@@ -298,7 +303,8 @@ function DemandeForm({ type }: { type: TypeDemande }) {
 
           {resultat && (
             <Alerte type={resultat.succes ? "succes" : "erreur"} role="status" className="mt-5">
-              <p>{resultat.message}</p>
+              <p className="font-semibold">{resultat.succes ? "Soumission réussie" : "Échec de la soumission"}</p>
+              <p className="mt-1">{resultat.message}</p>
               {resultat.succes && (
                 <Link href="/dashboard" className="mt-2 inline-flex items-center gap-1 font-semibold underline underline-offset-2">
                   Retour à mon espace <ArrowRight className="h-4 w-4" aria-hidden />

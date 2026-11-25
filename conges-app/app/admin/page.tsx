@@ -135,7 +135,7 @@ export default function AdminPage() {
   const router = useRouter();
   const [s, setS] = useState<Synthese | null>(null);
   const [erreur, setErreur] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<{ succes: boolean; texte: string } | null>(null);
   const [onglet, setOnglet] = useState<Onglet>("voeux");
   const [filtreStatut, setFiltreStatut] = useState<"tous" | LigneDemande["statut"]>("en_attente");
   const [filtreRole, setFiltreRole] = useState<"tous" | Role>("tous");
@@ -145,6 +145,10 @@ export default function AdminPage() {
   const [codeAffiche, setCodeAffiche] = useState<{ matricule: string; nom: string; code: string } | null>(null);
   const [edition, setEdition] = useState<EditionAgent | null>(null);
   const [erreurEdition, setErreurEdition] = useState("");
+
+  function afficherMessage(succes: boolean, texte: string) {
+    setMessage({ succes, texte });
+  }
 
   const charger = useCallback(() => {
     appelApi<Synthese>(router, "/api/admin/synthese")
@@ -169,10 +173,10 @@ export default function AdminPage() {
     setEnCours(d.id);
     try {
       const { data } = await appelApi(router, "/api/admin/demandes", { matricule: d.matricule, id: d.id, action, motif });
-      setMessage(`${d.matricule} — ${data.message}`);
-      charger();
+      afficherMessage(data.ok, `${d.matricule} — ${data.message ?? (data.ok ? "Action effectuée." : "L'action a échoué.")}`);
+      if (data.ok) charger();
     } catch (err) {
-      if (!(err instanceof RedirectionEnCours)) setMessage((err as Error).message);
+      if (!(err instanceof RedirectionEnCours)) afficherMessage(false, (err as Error).message);
     }
     setEnCours(null);
   }
@@ -193,10 +197,10 @@ export default function AdminPage() {
         action: "scinder_recuperation",
         periodeIndex
       });
-      setMessage(`${d.matricule} — ${data.message}`);
-      charger();
+      afficherMessage(data.ok, `${d.matricule} — ${data.message ?? (data.ok ? "Demande scindée." : "La conversion a échoué.")}`);
+      if (data.ok) charger();
     } catch (err) {
-      if (!(err instanceof RedirectionEnCours)) setMessage((err as Error).message);
+      if (!(err instanceof RedirectionEnCours)) afficherMessage(false, (err as Error).message);
     }
     setEnCours(null);
   }
@@ -216,10 +220,10 @@ export default function AdminPage() {
         action: "changer_type",
         typeCible
       });
-      setMessage(`${d.matricule} — ${data.message}`);
-      charger();
+      afficherMessage(data.ok, `${d.matricule} — ${data.message ?? (data.ok ? "Type de demande modifié." : "Le changement de type a échoué.")}`);
+      if (data.ok) charger();
     } catch (err) {
-      if (!(err instanceof RedirectionEnCours)) setMessage((err as Error).message);
+      if (!(err instanceof RedirectionEnCours)) afficherMessage(false, (err as Error).message);
     }
     setEnCours(null);
   }
@@ -237,7 +241,7 @@ export default function AdminPage() {
         if (err instanceof RedirectionEnCours) return;
       }
     }
-    setMessage(`${ok} vœu(x) validé(s) sur ${aValider.length}.`);
+    afficherMessage(ok === aValider.length, `${ok} vœu(x) validé(s) sur ${aValider.length}.`);
     setEnCours(null);
     charger();
   }
@@ -250,10 +254,10 @@ export default function AdminPage() {
     try {
       const { data } = await appelApi<{ code: string }>(router, "/api/admin/code", { matricule: a.matricule });
       if (data.ok) setCodeAffiche({ matricule: a.matricule, nom: `${a.prenom} ${a.nom}`, code: data.code });
-      else setMessage(data.message ?? "Échec.");
+      else afficherMessage(false, data.message ?? "Échec de génération du code.");
       charger();
     } catch (err) {
-      if (!(err instanceof RedirectionEnCours)) setMessage((err as Error).message);
+      if (!(err instanceof RedirectionEnCours)) afficherMessage(false, (err as Error).message);
     }
   }
 
@@ -288,7 +292,7 @@ export default function AdminPage() {
       if (!data.ok) {
         setErreurEdition(data.message ?? "La mise à jour a échoué.");
       } else {
-        setMessage(`${edition.matricule} — ${data.message}`);
+        afficherMessage(true, `${edition.matricule} — ${data.message ?? "Informations mises à jour."}`);
         setEdition(null);
         charger();
       }
@@ -434,7 +438,12 @@ export default function AdminPage() {
             <Bouton variante="secondaire" taille="sm" className="mt-3" onClick={() => setCodeAffiche(null)}>J&apos;ai transmis le code</Bouton>
           </Alerte>
         )}
-        {message && <Alerte type="info" role="status" className="mt-4">{message}</Alerte>}
+        {message && (
+          <Alerte type={message.succes ? "succes" : "erreur"} role="status" className="mt-4">
+            <p className="font-semibold">{message.succes ? "Opération réussie" : "Échec de l'opération"}</p>
+            <p className="mt-1">{message.texte}</p>
+          </Alerte>
+        )}
 
         {edition && (
           <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/40 p-4" role="presentation">
