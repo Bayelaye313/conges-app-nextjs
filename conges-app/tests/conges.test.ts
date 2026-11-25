@@ -214,6 +214,17 @@ describe("scinderRecuperationEnConge", () => {
     expect(a.demandes).toEqual([recuperation]);
   });
 
+  it("prolonge une période de 10 à 11 jours avant la conversion", () => {
+    const recuperation = recuperationDeuxParties(10, 1);
+    const finInitiale = recuperation.periodes[0].fin;
+    const a = agent({ demandes: [recuperation] });
+    const r = scinderRecuperationEnConge(registre(a), a.matricule, recuperation.id, 0, AUJOURDHUI, 11);
+
+    expect(r.succes).toBe(true);
+    expect(a.demandes[1]).toMatchObject({ type: "conge", jours: 11, statut: "en_attente" });
+    expect(a.demandes[1].periodes[0].fin > finInitiale).toBe(true);
+  });
+
   it("applique le délai habituel des congés à la partie convertie", () => {
     const recuperation = recuperationDeuxParties(11, 1);
     const a = agent({
@@ -259,6 +270,59 @@ describe("changerTypeDemande", () => {
     const demandeInitiale = { ...demande(resultat.periodes), type: "recuperation" as const };
     const a = agent({ demandes: [demandeInitiale] });
     const r = changerTypeDemande(registre(a), a.matricule, demandeInitiale.id, "conge", AUJOURDHUI);
+
+    expect(r.succes).toBe(false);
+    expect(a.demandes[0]).toEqual(demandeInitiale);
+  });
+
+  it("prolonge une récupération de 10 à 11 jours avant sa conversion en congé", () => {
+    const resultat = construirePeriodes(
+      [{ annee: 2027, mois: 2, partie: "debut", nbJours: 10 }],
+      "recuperation"
+    );
+    if (resultat.status !== "ok") throw new Error(resultat.message);
+    const demandeInitiale = { ...demande(resultat.periodes), type: "recuperation" as const };
+    const a = agent({ demandes: [demandeInitiale] });
+
+    const r = changerTypeDemande(registre(a), a.matricule, demandeInitiale.id, "conge", AUJOURDHUI, 11);
+
+    expect(r.succes).toBe(true);
+    expect(a.demandes[0]).toMatchObject({
+      type: "conge",
+      statut: "en_attente",
+      jours: 11,
+      periodes: [{ debut: "2027-02-01", fin: "2027-02-12", jours: 11 }]
+    });
+  });
+
+  it("refuse de réduire les jours ou de dépasser le maximum lors d'une conversion", () => {
+    const resultat = construirePeriodes(
+      [{ annee: 2027, mois: 2, partie: "debut", nbJours: 10 }],
+      "recuperation"
+    );
+    if (resultat.status !== "ok") throw new Error(resultat.message);
+    const demandeInitiale = { ...demande(resultat.periodes), type: "recuperation" as const };
+    const a = agent({ demandes: [demandeInitiale] });
+
+    expect(changerTypeDemande(registre(a), a.matricule, demandeInitiale.id, "conge", AUJOURDHUI, 9).succes).toBe(false);
+    expect(changerTypeDemande(registre(a), a.matricule, demandeInitiale.id, "conge", AUJOURDHUI, 91).succes).toBe(false);
+    expect(a.demandes[0]).toEqual(demandeInitiale);
+  });
+
+  it("ne modifie pas la demande si la prolongation chevauche une autre demande", () => {
+    const recuperation = construirePeriodes(
+      [{ annee: 2027, mois: 2, partie: "debut", nbJours: 10 }],
+      "recuperation"
+    );
+    if (recuperation.status !== "ok") throw new Error(recuperation.message);
+    const demandeInitiale = { ...demande(recuperation.periodes), type: "recuperation" as const };
+    const autreRecuperation = {
+      ...demande([{ debut: "2027-03-01", fin: "2027-03-01", jours: 1 }]),
+      type: "recuperation" as const
+    };
+    const a = agent({ demandes: [demandeInitiale, autreRecuperation] });
+
+    const r = changerTypeDemande(registre(a), a.matricule, demandeInitiale.id, "conge", AUJOURDHUI, 25);
 
     expect(r.succes).toBe(false);
     expect(a.demandes[0]).toEqual(demandeInitiale);
@@ -395,6 +459,20 @@ describe("verifierDemande", () => {
     expect(verifierDemande(registre(a), a, periodes(2027, 7, 11, "fin"), AUJOURDHUI).ok).toBe(false);
     expect(verifierDemande(registre(a), a, periodes(2027, 8, 11, "debut"), AUJOURDHUI).ok).toBe(true);
     expect(verifierDemande(registre(a), a, periodes(2027, 9, 11, "debut"), AUJOURDHUI).ok).toBe(true);
+  });
+
+  it("utilise le premier départ de l'année comme référence malgré une période importée plus tard", () => {
+    const a = agent({
+      jours_pris_reprise: 0,
+      historique: [
+        { debut: "2026-06-09", fin: "2026-06-25", jours: 15 },
+        { debut: "2026-12-21", fin: "2027-01-01", jours: 9 }
+      ]
+    });
+    const juin2027 = periodes(2027, 6, 11, "debut");
+
+    expect(premiereDatePossible(a, AUJOURDHUI)).toBe("2027-06-01");
+    expect(verifierDemande(registre(a), a, juin2027, AUJOURDHUI).ok).toBe(true);
   });
 
   it("référence le mois de départ même si le congé se termine le mois suivant", () => {

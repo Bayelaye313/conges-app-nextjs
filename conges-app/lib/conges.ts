@@ -199,6 +199,32 @@ export function dernierConge(agent: Agent): Conge | null {
   return congesDeLAgent(agent, false).reduce<Conge | null>((max, c) => (!max || c.fin > max.fin ? c : max), null);
 }
 
+function congesDeReferenceDelai(agent: Agent): Conge[] {
+  const premierePeriodeParAnnee = new Map<number, Periode>();
+  for (const periode of agent.historique) {
+    const annee = Number(periode.debut.slice(0, 4));
+    const premiere = premierePeriodeParAnnee.get(annee);
+    if (!premiere || periode.debut < premiere.debut) premierePeriodeParAnnee.set(annee, periode);
+  }
+  const historiques = [...premierePeriodeParAnnee.values()].map((periode) => ({
+    debut: periode.debut,
+    fin: periode.fin,
+    periodes: [periode]
+  }));
+  const demandes = demandesActives(agent)
+    .filter((demande) => demande.type !== "recuperation")
+    .map((demande) => ({
+      debut: demande.periodes[0].debut,
+      fin: demande.periodes[demande.periodes.length - 1].fin,
+      periodes: demande.periodes
+    }));
+  if (agent.dernier_conge_fin && !agent.historique.length) {
+    const periode = { debut: agent.dernier_conge_fin, fin: agent.dernier_conge_fin, jours: 0 };
+    historiques.push({ debut: periode.debut, fin: periode.fin, periodes: [periode] });
+  }
+  return [...historiques, ...demandes];
+}
+
 function premierJourMoisDelai(debut: string): string {
   const date = strToDate(debut);
   return dateToStr(dateUTC(date.getUTCFullYear(), date.getUTCMonth() + 1 + CONFIG.DELAI_MOIS, 1));
@@ -217,7 +243,10 @@ export function prochainAncrage(date: string): string {
  * marque les 12 mois calendaires depuis le départ du dernier congé.
  */
 export function premiereDatePossible(agent: Agent, aujourdHui: Date): string {
-  const dernier = dernierConge(agent);
+  const dernier = congesDeReferenceDelai(agent).reduce<Conge | null>(
+    (max, conge) => (!max || conge.debut > max.debut ? conge : max),
+    null
+  );
   return prochainAncrage(
     maxStr(
       dateToStr(ajouterJours(aujourdHui, 1)),
@@ -549,8 +578,9 @@ export function verifierDemande(
   }
 
   if (type === "conge") {
-    // Le délai de 12 mois lie les congés entre eux, mais pas les récupérations.
-    for (const c of congesDeLAgent(agent, false)) {
+    // Pour l'historique importé, le premier départ de chaque année sert de référence.
+    // Les demandes de récupération ne déclenchent pas le délai de 12 mois.
+    for (const c of congesDeReferenceDelai(agent)) {
       const debutPrecedent = c.fin < debut ? c.debut : debut;
       const debutSuivant = c.fin < debut ? debut : c.debut;
       const limite = premierJourMoisDelai(debutPrecedent);
@@ -603,7 +633,8 @@ export function changerTypeDemande(
   matricule: string,
   id: string,
   typeCible: TypeDemande,
-  aujourdHui: Date = aujourdhuiUTC()
+  aujourdHui: Date = aujourdhuiUTC(),
+  joursCible?: number
 ): ResultatAction {
   const agent = trouverAgent(registre, matricule);
   if (!agent) return { succes: false, message: "❌ Agent introuvable." };
@@ -615,15 +646,44 @@ export function changerTypeDemande(
     return { succes: false, message: `Cette demande est déjà de type ${typeCible === "conge" ? "congé" : "récupération"}.` };
   }
 
-  const jours = demande.periodes.reduce((total, periode) => total + periode.jours, 0);
-  if (typeCible === "conge" && jours < CONFIG.MIN_DAYS) {
+  const joursActuels = demande.periodes.reduce((total, periode) => total + periode.jours, 0);
+  if (joursActuels > CONFIG.MAX_DAYS) {
+    return { succes: false, message: `❌ Une demande ne peut pas dépasser ${CONFIG.MAX_DAYS} jours.` };
+  }
+  let periodes = demande.periodes;
+  let joursSupplementaires = 0;
+  if (typeCible === "conge" && (demande.type ?? "conge") === "recuperation") {
+    const totalCible = joursCible ?? joursActuels;
+    if (!Number.isInteger(totalCible) || totalCible < CONFIG.MIN_DAYS) {
+      return {
+        succes: false,
+        message: `❌ Le minimum pour convertir en congé est de ${CONFIG.MIN_DAYS} jours.`
+      };
+    }
+    if (totalCible < joursActuels) {
+      return { succes: false, message: "❌ La conversion ne peut pas réduire le nombre de jours de la demande." };
+    }
+    if (totalCible > CONFIG.MAX_DAYS) {
+      return { succes: false, message: `❌ Une demande ne peut pas dépasser ${CONFIG.MAX_DAYS} jours.` };
+    }
+    joursSupplementaires = totalCible - joursActuels;
+    periodes = demande.periodes.map((p) => ({ ...p }));
+    if (joursSupplementaires > 0) {
+      const derniereIndex = periodes.length - 1;
+      const derniere = periodes[derniereIndex];
+      if (!derniere) return { succes: false, message: "❌ Cette demande ne contient aucune période à prolonger." };
+      const extension = etendrePeriode(ajouterJours(strToDate(derniere.fin), 1), joursSupplementaires);
+      periodes[derniereIndex] = {
+        ...derniere,
+        fin: dateToStr(extension.fin),
+        jours: derniere.jours + joursSupplementaires
+      };
+    }
+  } else if (typeCible === "conge" && joursActuels < CONFIG.MIN_DAYS) {
     return {
       succes: false,
-      message: `❌ Cette demande compte ${jours} jours; le minimum pour un congé est de ${CONFIG.MIN_DAYS} jours.`
+      message: `❌ Cette demande compte ${joursActuels} jours; le minimum pour un congé est de ${CONFIG.MIN_DAYS} jours.`
     };
-  }
-  if (jours > CONFIG.MAX_DAYS) {
-    return { succes: false, message: `❌ Une demande ne peut pas dépasser ${CONFIG.MAX_DAYS} jours.` };
   }
 
   const agentVerifie: Agent = {
@@ -634,17 +694,22 @@ export function changerTypeDemande(
     ...registre,
     agents: { ...registre.agents, [matricule]: agentVerifie }
   };
-  const verification = verifierDemande(registreVerifie, agentVerifie, demande.periodes, aujourdHui, typeCible);
+  const verification = verifierDemande(registreVerifie, agentVerifie, periodes, aujourdHui, typeCible);
   if (!verification.ok) return { succes: false, message: verification.message };
 
   demande.type = typeCible;
+  demande.periodes = periodes;
+  demande.jours = periodes.reduce((total, periode) => total + periode.jours, 0);
   demande.statut = "en_attente";
   delete demande.traite_le;
   delete demande.traite_par;
   delete demande.motif;
+  const detailProlongation = joursSupplementaires
+    ? ` La dernière période a été prolongée jusqu'au ${formatFr(periodes[periodes.length - 1].fin)} (+${joursSupplementaires} jour(s)).`
+    : "";
   return {
     succes: true,
-    message: `Demande passée en ${typeCible === "conge" ? "congé" : "récupération"} et remise en attente de validation.`
+    message: `Demande passée en ${typeCible === "conge" ? "congé" : "récupération"} (${demande.jours} jours) et remise en attente de validation.${detailProlongation}`
   };
 }
 
@@ -654,7 +719,8 @@ export function scinderRecuperationEnConge(
   matricule: string,
   id: string,
   periodeIndex: number,
-  aujourdHui: Date = aujourdhuiUTC()
+  aujourdHui: Date = aujourdhuiUTC(),
+  joursCible?: number
 ): ResultatAction {
   const agent = trouverAgent(registre, matricule);
   if (!agent) return { succes: false, message: "❌ Agent introuvable." };
@@ -669,16 +735,29 @@ export function scinderRecuperationEnConge(
     return { succes: false, message: "Sélectionnez une période valide à convertir." };
   }
 
-  const periodeConge = demande.periodes[periodeIndex];
-  if (periodeConge.jours < CONFIG.MIN_DAYS) {
+  const periodeOriginale = demande.periodes[periodeIndex];
+  const totalCible = joursCible ?? periodeOriginale.jours;
+  if (!Number.isInteger(totalCible) || totalCible < CONFIG.MIN_DAYS) {
     return {
       succes: false,
-      message: `❌ Cette période compte ${periodeConge.jours} jours; le minimum pour un congé est de ${CONFIG.MIN_DAYS} jours.`
+      message: `❌ La période convertie doit compter au moins ${CONFIG.MIN_DAYS} jours.`
     };
   }
-  if (periodeConge.jours > CONFIG.MAX_DAYS) {
+  if (totalCible < periodeOriginale.jours) {
+    return { succes: false, message: "❌ La conversion ne peut pas réduire le nombre de jours de la période." };
+  }
+  if (totalCible > CONFIG.MAX_DAYS) {
     return { succes: false, message: `❌ Un congé ne peut pas dépasser ${CONFIG.MAX_DAYS} jours.` };
   }
+  const joursSupplementaires = totalCible - periodeOriginale.jours;
+  const extension = joursSupplementaires > 0
+    ? etendrePeriode(ajouterJours(strToDate(periodeOriginale.fin), 1), joursSupplementaires)
+    : null;
+  const periodeConge: Periode = {
+    ...periodeOriginale,
+    ...(extension ? { fin: dateToStr(extension.fin) } : {}),
+    jours: totalCible
+  };
 
   const periodeRecuperation = demande.periodes[1 - periodeIndex];
   const agentVerifie: Agent = {
@@ -704,9 +783,12 @@ export function scinderRecuperationEnConge(
     statut: "en_attente",
     cree_le: new Date().toISOString()
   });
+  const detailProlongation = joursSupplementaires
+    ? ` La période convertie a été prolongée jusqu'au ${formatFr(periodeConge.fin)} (+${joursSupplementaires} jour(s)).`
+    : "";
   return {
     succes: true,
-    message: "Récupération scindée : la période choisie est devenue une demande de congé en attente; l'autre reste une récupération."
+    message: `Récupération scindée : la période choisie est devenue une demande de congé de ${totalCible} jours en attente; l'autre reste une récupération.${detailProlongation}`
   };
 }
 
@@ -756,21 +838,29 @@ export function traiterDemande(
   action: "valider" | "supprimer" | "scinder_recuperation" | "changer_type",
   motif?: string,
   periodeIndex?: number,
-  typeCible?: TypeDemande
+  typeCible?: TypeDemande,
+  joursCible?: number
 ): Promise<ResultatAction> {
   return modifierDocument<Registre, ResultatAction>((registre) => {
     if (action === "scinder_recuperation") {
       if (periodeIndex === undefined) {
         return { ecrire: false, resultat: { succes: false, message: "Sélectionnez une période à convertir." } };
       }
-      const resultat = scinderRecuperationEnConge(registre, matricule, id, periodeIndex);
+      const resultat = scinderRecuperationEnConge(
+        registre,
+        matricule,
+        id,
+        periodeIndex,
+        aujourdhuiUTC(),
+        joursCible
+      );
       return { ecrire: resultat.succes, resultat };
     }
     if (action === "changer_type") {
       if (!typeCible) {
         return { ecrire: false, resultat: { succes: false, message: "Sélectionnez le nouveau type de demande." } };
       }
-      const resultat = changerTypeDemande(registre, matricule, id, typeCible);
+      const resultat = changerTypeDemande(registre, matricule, id, typeCible, aujourdhuiUTC(), joursCible);
       return { ecrire: resultat.succes, resultat };
     }
 

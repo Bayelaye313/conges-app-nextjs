@@ -14,7 +14,7 @@ d'administration (matricule 0568) pour suivre, valider, supprimer et exporter le
 | Déduction | Seuls les jours posés hors dimanches et jours fériés sont déduits du solde ; l'aperçu détaille jours d'absence, dimanches, fériés et solde avant/après. |
 | Grandes fêtes | Sur une même année, un agent ne peut pas être en congé pour la Korité **et** la Tabaski, ni pour le Grand Magal de Touba **et** le Gamou (Maouloud) (congés repris, vœux actifs et nouveau vœu confondus). Les dimanches et fériés collés à une période comptent comme absence. |
 | Ancienneté | Premier congé possible à partir de la date anniversaire d'entrée (12 mois). |
-| Délai | 12 mois calendaires entre les mois de départ de deux congés : après un départ en mai 2026 (même si le retour est en juin), un congé peut être demandé dès mai 2027, quel que soit le jour du mois. |
+| Délai | 12 mois calendaires entre les mois de départ de deux congés : après un départ en mai 2026 (même si le retour est en juin), un congé peut être demandé dès mai 2027, quel que soit le jour du mois. Pour l'historique importé, le premier départ de chaque année sert de référence; les demandes actives de congé comptent aussi, les récupérations non. |
 | Plafonds | On limite les absents simultanés par jour : agents de vente à 9 du 1er au 15 janvier 2027, puis 16 ; chefs d'équipe à 3 ; chefs de secteur sans plafond. Les vœux en attente et validés comptent dans le planning par quinzaine, les demandes supprimées et l'historique importé n'y comptent pas. |
 | Congés 2026 | Repris de l'ancien suivi, ils comptent pour le délai, les chevauchements et la vérification des plafonds à la soumission, mais ne sont pas re-débités (déjà dans le cumul « jours pris »). |
 
@@ -32,8 +32,9 @@ officiel, puis redéployer.
 - **Admin (0568)** : KPIs (taux de soumission global et par rôle, vœux en attente / validés /
   supprimés, agents sans vœu, moins d'un an, soldes faibles, agents connectés), liste des vœux
   avec validation (unitaire ou en lot) et suppression motivée, changement du type d'une demande
-  (congé / récupération, avec revalidation), scission d'une récupération à deux périodes en deux demandes
-  distinctes avec conversion d'une période en congé, liste des agents sans vœu avec
+  (congé / récupération, avec revalidation et prolongation de la dernière période pour atteindre le
+  minimum de 11 jours lors d'une conversion en congé),   scission d'une récupération à deux périodes en deux demandes distinctes avec choix du nombre de jours
+  de la période convertie (prolongée si nécessaire), liste des agents sans vœu avec
   la date à laquelle leur solde atteint 11 jours, modification des informations RH d'un agent
   (matricule, identité, fonction, rôle, date d'embauche, cumul des jours pris et dernier congé), occupation par quinzaine et par rôle,
   génération d'un nouveau code pour un agent, exports CSV (vœux, agents) et sauvegarde JSON.

@@ -184,8 +184,19 @@ export default function AdminPage() {
   async function convertirPeriodeRecuperation(d: LigneDemande, periodeIndex: number) {
     const periode = d.periodes[periodeIndex];
     if (!periode) return;
+    const minimum = Math.max(s?.minJours ?? 11, periode.jours);
+    const saisie = window.prompt(
+      `Nombre de jours décomptés pour cette période (minimum ${minimum} jours). Elle sera prolongée si nécessaire.`,
+      String(minimum)
+    );
+    if (saisie === null) return;
+    const joursCible = Number(saisie.trim());
+    if (!Number.isInteger(joursCible) || joursCible < minimum || joursCible > 90) {
+      afficherMessage(false, `Indiquez un nombre entier entre ${minimum} et 90 jours.`);
+      return;
+    }
     const confirmer = window.confirm(
-      `Scinder la récupération de ${d.prenom} ${d.nom} ? La période du ${formatFr(periode.debut)} au ${formatFr(dateRetour(periode.fin))} deviendra un congé, avec les règles habituelles (minimum de 11 jours, délai, solde et plafond). L'autre période restera une récupération. Le congé sera soumis à validation.`
+      `Scinder la récupération de ${d.prenom} ${d.nom} ? La période du ${formatFr(periode.debut)} au ${formatFr(dateRetour(periode.fin))} passera de ${periode.jours} à ${joursCible} jours décomptés et sera prolongée si nécessaire. Les règles habituelles (délai, solde et plafond) seront vérifiées. L'autre période restera une récupération. Le congé sera soumis à validation.`
     );
     if (!confirmer) return;
 
@@ -195,7 +206,8 @@ export default function AdminPage() {
         matricule: d.matricule,
         id: d.id,
         action: "scinder_recuperation",
-        periodeIndex
+        periodeIndex,
+        joursCible
       });
       afficherMessage(data.ok, `${d.matricule} — ${data.message ?? (data.ok ? "Demande scindée." : "La conversion a échoué.")}`);
       if (data.ok) charger();
@@ -208,8 +220,26 @@ export default function AdminPage() {
   async function changerTypeSoumission(d: LigneDemande) {
     const typeCible = (d.type ?? "conge") === "recuperation" ? "conge" : "recuperation";
     const libelleCible = typeCible === "conge" ? "congé" : "récupération";
+    const joursActuels = d.periodes.reduce((total, periode) => total + periode.jours, 0);
+    let joursCible: number | undefined;
+    if (typeCible === "conge") {
+      const minimum = Math.max(s?.minJours ?? 11, joursActuels);
+      const saisie = window.prompt(
+        `Nombre total de jours décomptés pour le congé (minimum ${minimum} jours). Si nécessaire, la dernière période sera prolongée.`,
+        String(minimum)
+      );
+      if (saisie === null) return;
+      joursCible = Number(saisie.trim());
+      if (!Number.isInteger(joursCible) || joursCible < minimum || joursCible > 90) {
+        afficherMessage(false, `Indiquez un nombre entier entre ${minimum} et 90 jours.`);
+        return;
+      }
+    }
+    const detailJours = joursCible !== undefined
+      ? ` Le total passera de ${joursActuels} à ${joursCible} jour(s) décompté(s), en prolongeant la dernière période si nécessaire.`
+      : "";
     if (!window.confirm(
-      `Passer cette demande en ${libelleCible} ? Les dates seront conservées et vérifiées selon les règles de ce type. Elle repassera en attente de validation.`
+      `Passer cette demande en ${libelleCible} ?${detailJours} Les règles de solde, délai et plafond seront vérifiées. Elle repassera en attente de validation.`
     )) return;
 
     setEnCours(d.id);
@@ -218,7 +248,8 @@ export default function AdminPage() {
         matricule: d.matricule,
         id: d.id,
         action: "changer_type",
-        typeCible
+        typeCible,
+        joursCible
       });
       afficherMessage(data.ok, `${d.matricule} — ${data.message ?? (data.ok ? "Type de demande modifié." : "Le changement de type a échoué.")}`);
       if (data.ok) charger();
@@ -629,7 +660,7 @@ export default function AdminPage() {
                                   disabled={enCours !== null}
                                   onClick={() => changerTypeSoumission(d)}
                                 >
-                                  Passer en {(d.type ?? "conge") === "recuperation" ? "congé" : "récupération"}
+                                  {(d.type ?? "conge") === "recuperation" ? "Convertir en congé" : "Passer en récupération"}
                                 </Bouton>
                                 <Bouton variante="danger" taille="sm" disabled={enCours !== null} onClick={() => traiter(d, "supprimer")} title="Supprimer">
                                   <Trash2 className="h-4 w-4" aria-hidden />
