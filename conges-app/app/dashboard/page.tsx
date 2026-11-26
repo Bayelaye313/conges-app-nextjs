@@ -35,7 +35,6 @@ import {
   moisAnnee,
   RedirectionEnCours
 } from "@/lib/client";
-import { dernierConge } from "@/lib/conges";
 
 interface Periode {
   debut: string;
@@ -129,7 +128,15 @@ export default function DashboardPage() {
   }
 
   const { agent, minJours } = donnees;
-  const dernier = dernierConge(agent);
+  const recuperations = agent.demandes
+    .filter((d) => d.statut !== "supprime" && d.type === "recuperation")
+    .flatMap((d) => d.periodes);
+  const dernier = [
+    ...agent.historique.filter((p) => !recuperations.some((r) => r.debut === p.debut && r.fin === p.fin)),
+    ...agent.demandes
+      .filter((d) => d.statut !== "supprime" && d.type !== "recuperation")
+      .flatMap((d) => d.periodes)
+  ].reduce<Periode | null>((max, p) => (!max || p.fin > max.fin ? p : max), null);
   const moisSuffisant =
     agent.solde_a_cette_date >= minJours
       ? null
