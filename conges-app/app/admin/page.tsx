@@ -238,8 +238,11 @@ export default function AdminPage() {
     const detailJours = joursCible !== undefined
       ? ` Le total passera de ${joursActuels} à ${joursCible} jour(s) décompté(s), en prolongeant la dernière période si nécessaire.`
       : "";
+    const detailHistorique = typeCible === "recuperation"
+      ? " Les dates et jours réservés ne changent pas; les périodes identiques de l'historique seront retirées."
+      : "";
     if (!window.confirm(
-      `Passer cette demande en ${libelleCible} ?${detailJours} Les règles de solde, délai et plafond seront vérifiées. Elle repassera en attente de validation.`
+      `Passer cette demande en ${libelleCible} ?${detailJours}${detailHistorique}${typeCible === "conge" ? " Les règles de solde, délai et plafond seront vérifiées." : ""} Elle repassera en attente de validation.`
     )) return;
 
     setEnCours(d.id);

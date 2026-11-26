@@ -6,6 +6,7 @@ import {
   changerTypeDemande,
   construirePeriodes,
   dateToStr,
+  dernierConge,
   joursAcquis,
   occupationParQuinzaine,
   premiereDatePossible,
@@ -339,6 +340,39 @@ describe("changerTypeDemande", () => {
       statut: "en_attente",
       periodes: demandeInitiale.periodes
     });
+  });
+
+  it("reclasse une récupération dupliquée dans l'historique sans repousser le délai de congé", () => {
+    const periodeRecuperation = { debut: "2026-12-18", fin: "2027-01-06", jours: 15 };
+    const demandeInitiale = demande([periodeRecuperation], "valide");
+    const a = agent({
+      jours_pris_reprise: 0,
+      historique: [
+        { debut: "2026-09-04", fin: "2026-09-21", jours: 15 },
+        periodeRecuperation
+      ],
+      demandes: [demandeInitiale]
+    });
+
+    const resultat = changerTypeDemande(registre(a), a.matricule, demandeInitiale.id, "recuperation", AUJOURDHUI);
+
+    expect(resultat.succes).toBe(true);
+    expect(a.demandes[0].type).toBe("recuperation");
+    expect(a.historique).toEqual([{ debut: "2026-09-04", fin: "2026-09-21", jours: 15 }]);
+    expect(dernierConge(a)?.fin).toBe("2026-09-21");
+    expect(premiereDatePossible(a, AUJOURDHUI)).toBe("2027-09-01");
+    expect(verifierDemande(registre(a), a, periodes(2027, 8, 11, "debut"), AUJOURDHUI).ok).toBe(false);
+    expect(verifierDemande(registre(a), a, periodes(2027, 10, 11, "debut"), AUJOURDHUI).ok).toBe(true);
+  });
+
+  it("reclasse une demande existante en récupération sans la revalider contre le solde courant", () => {
+    const demandeInitiale = demande([{ debut: "2026-12-18", fin: "2027-01-06", jours: 15 }], "valide");
+    const a = agent({ jours_pris_reprise: 1000, demandes: [demandeInitiale] });
+
+    const resultat = changerTypeDemande(registre(a), a.matricule, demandeInitiale.id, "recuperation", AUJOURDHUI);
+
+    expect(resultat.succes).toBe(true);
+    expect(a.demandes[0]).toMatchObject({ type: "recuperation", statut: "en_attente" });
   });
 });
 

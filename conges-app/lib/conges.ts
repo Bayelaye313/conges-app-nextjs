@@ -153,7 +153,7 @@ export function joursAcquis(dateEmbauche: string, date: Date): number {
   return moisDeService(dateEmbauche, date) * CONFIG.JOURS_ACQUIS_PAR_MOIS;
 }
 
-export function demandesActives(agent: Agent): Demande[] {
+export function demandesActives(agent: Pick<Agent, "demandes">): Demande[] {
   return agent.demandes.filter((d) => d.statut !== "supprime");
 }
 
@@ -179,9 +179,22 @@ interface Conge {
   periodes: Periode[];
 }
 
-export function congesDeLAgent(agent: Agent, inclureRecuperations = true): Conge[] {
+type AgentAvecConges = Pick<Agent, "historique" | "demandes"> & Partial<Pick<Agent, "dernier_conge_fin">>;
+
+function periodeIdentique(a: Periode, b: Periode): boolean {
+  return a.debut === b.debut && a.fin === b.fin;
+}
+
+function historiqueSansRecuperationsDupliquees(agent: AgentAvecConges): Periode[] {
+  const recuperations = agent.demandes
+    .filter((demande) => demande.statut !== "supprime" && demande.type === "recuperation")
+    .flatMap((demande) => demande.periodes);
+  return agent.historique.filter((periode) => !recuperations.some((recuperation) => periodeIdentique(periode, recuperation)));
+}
+
+export function congesDeLAgent(agent: AgentAvecConges, inclureRecuperations = true): Conge[] {
   const conges: Conge[] = [
-    ...agent.historique.map((p) => ({ debut: p.debut, fin: p.fin, periodes: [p] })),
+    ...historiqueSansRecuperationsDupliquees(agent).map((p) => ({ debut: p.debut, fin: p.fin, periodes: [p] })),
     ...demandesActives(agent).filter((d) => inclureRecuperations || d.type !== "recuperation").map((d) => ({
       debut: d.periodes[0].debut,
       fin: d.periodes[d.periodes.length - 1].fin,
@@ -195,13 +208,13 @@ export function congesDeLAgent(agent: Agent, inclureRecuperations = true): Conge
   return conges;
 }
 
-export function dernierConge(agent: Agent): Conge | null {
+export function dernierConge(agent: AgentAvecConges): Conge | null {
   return congesDeLAgent(agent, false).reduce<Conge | null>((max, c) => (!max || c.fin > max.fin ? c : max), null);
 }
 
 function congesDeReferenceDelai(agent: Agent): Conge[] {
   const premierePeriodeParAnnee = new Map<number, Periode>();
-  for (const periode of agent.historique) {
+  for (const periode of historiqueSansRecuperationsDupliquees(agent)) {
     const annee = Number(periode.debut.slice(0, 4));
     const premiere = premierePeriodeParAnnee.get(annee);
     if (!premiere || periode.debut < premiere.debut) premierePeriodeParAnnee.set(annee, periode);
@@ -688,18 +701,28 @@ export function changerTypeDemande(
 
   const agentVerifie: Agent = {
     ...agent,
+    historique: typeCible === "recuperation"
+      ? agent.historique.filter((historique) => !demande.periodes.some((periode) => periodeIdentique(historique, periode)))
+      : agent.historique,
     demandes: agent.demandes.filter((d) => d.id !== id)
   };
   const registreVerifie: Registre = {
     ...registre,
     agents: { ...registre.agents, [matricule]: agentVerifie }
   };
-  const verification = verifierDemande(registreVerifie, agentVerifie, periodes, aujourdHui, typeCible);
-  if (!verification.ok) return { succes: false, message: verification.message };
+  if (typeCible === "conge") {
+    const verification = verifierDemande(registreVerifie, agentVerifie, periodes, aujourdHui, typeCible);
+    if (!verification.ok) return { succes: false, message: verification.message };
+  }
 
   demande.type = typeCible;
   demande.periodes = periodes;
   demande.jours = periodes.reduce((total, periode) => total + periode.jours, 0);
+  if (typeCible === "recuperation") {
+    agent.historique = agent.historique.filter(
+      (historique) => !demande.periodes.some((periode) => periodeIdentique(historique, periode))
+    );
+  }
   demande.statut = "en_attente";
   delete demande.traite_le;
   delete demande.traite_par;
@@ -709,7 +732,10 @@ export function changerTypeDemande(
     : "";
   return {
     succes: true,
-    message: `Demande passée en ${typeCible === "conge" ? "congé" : "récupération"} (${demande.jours} jours) et remise en attente de validation.${detailProlongation}`
+    message:
+      `Demande passée en ${typeCible === "conge" ? "congé" : "récupération"} (${demande.jours} jours) et remise en attente de validation.` +
+      (typeCible === "recuperation" ? " Les périodes identiques de l'historique ont été retirées." : "") +
+      detailProlongation
   };
 }
 
