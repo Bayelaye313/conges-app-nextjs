@@ -740,8 +740,10 @@ describe("occupation et synthèse admin", () => {
       "mars 2027", "avril 2027", "mai 2027", "juin 2027",
       "juillet 2027", "août 2027", "septembre 2027", "octobre 2027"
     ]);
-    expect(resultat).toContain("Congé du 30/11/2026 au 11/12/2026");
-    expect(resultat).toContain("Récupération du 01/05/2027 au 04/05/2027");
+    expect(resultat).toContain("Congé du 30/11/2026 au 30/11/2026");
+    expect(resultat).toContain("Congé du 01/12/2026 au 10/12/2026");
+    expect(resultat).not.toContain("Congé du 30/11/2026 au 10/12/2026");
+    expect(resultat).toContain("Récupération du 01/05/2027 au 03/05/2027");
     expect(resultat).not.toContain("01/02/2027");
     expect(resultat).not.toContain("01/11/2027");
     expect(lignes).toHaveLength(3);

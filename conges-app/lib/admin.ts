@@ -293,10 +293,11 @@ export function exportCalendrierPrevisionnel(registre: Registre, aujourdHui: Dat
         .flatMap((demande) =>
           demande.periodes
             .filter((periode) => periode.debut <= periodeMois.fin && periode.fin >= periodeMois.debut)
-            .map((periode) =>
-              `${demande.type === "recuperation" ? "Récupération" : "Congé"} du ${fr(periode.debut)} au ` +
-              fr(dateToStr(ajouterJours(strToDate(periode.fin), 1)))
-            )
+            .map((periode) => {
+              const debut = periode.debut < periodeMois.debut ? periodeMois.debut : periode.debut;
+              const fin = periode.fin > periodeMois.fin ? periodeMois.fin : periode.fin;
+              return `${demande.type === "recuperation" ? "Récupération" : "Congé"} du ${fr(debut)} au ${fr(fin)}`;
+            })
         )
         .join(" | ")
     );

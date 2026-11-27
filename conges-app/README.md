@@ -39,7 +39,7 @@ officiel, puis redéployer.
   la date à laquelle leur solde atteint 11 jours, modification des informations RH d'un agent
   (matricule, identité, fonction, rôle, date d'embauche, cumul des jours pris et dernier congé), occupation par quinzaine et par rôle,
   génération d'un nouveau code pour un agent, exports CSV (vœux, agents, calendrier prévisionnel
-  sur 12 mois avec les congés et récupérations validés) et sauvegarde JSON.
+  roulant sur 12 mois avec les demandes validées, périodes ventilées par mois) et sauvegarde JSON.
 
 ## Préparation (sur votre poste)
 
