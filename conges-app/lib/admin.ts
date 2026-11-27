@@ -275,6 +275,39 @@ export function exportVoeux(registre: Registre): string {
   );
 }
 
+export function exportCalendrierPrevisionnel(registre: Registre, aujourdHui: Date): string {
+  const mois = Array.from({ length: 12 }, (_, decalage) => {
+    const debutDate = new Date(Date.UTC(aujourdHui.getUTCFullYear(), aujourdHui.getUTCMonth() + decalage, 1));
+    const finDate = new Date(Date.UTC(debutDate.getUTCFullYear(), debutDate.getUTCMonth() + 1, 0));
+    return {
+      debut: dateToStr(debutDate),
+      fin: dateToStr(finDate),
+      libelle: new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" }).format(debutDate)
+    };
+  });
+  const agents = Object.values(registre.agents).sort((a, b) => a.matricule.localeCompare(b.matricule));
+  const lignes = agents.map((agent) => {
+    const demandesValidees = agent.demandes.filter((demande) => demande.statut === "valide");
+    const cellulesMois = mois.map((periodeMois) =>
+      demandesValidees
+        .flatMap((demande) =>
+          demande.periodes
+            .filter((periode) => periode.debut <= periodeMois.fin && periode.fin >= periodeMois.debut)
+            .map((periode) =>
+              `${demande.type === "recuperation" ? "Récupération" : "Congé"} du ${fr(periode.debut)} au ` +
+              fr(dateToStr(ajouterJours(strToDate(periode.fin), 1)))
+            )
+        )
+        .join(" | ")
+    );
+    return [agent.matricule, agent.prenom, agent.nom, agent.fonction, agent.role, ...cellulesMois];
+  });
+  return csv(
+    ["Matricule", "Prénom", "Nom", "Fonction", "Rôle", ...mois.map((m) => m.libelle)],
+    lignes
+  );
+}
+
 export function exportAgents(registre: Registre, aujourdHui: Date): string {
   const synthese = construireSynthese(registre, aujourdHui);
   const parMatricule = registre.agents;

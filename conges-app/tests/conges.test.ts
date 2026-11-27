@@ -25,7 +25,7 @@ import {
   type Registre
 } from "../lib/conges";
 import { compterJoursDecomptes, detailDecompte, estFerie, fetesExclusives, paques } from "../lib/calendrier";
-import { construireSynthese, exportVoeux, mettreAJourInfosAgent } from "../lib/admin";
+import { construireSynthese, exportCalendrierPrevisionnel, exportVoeux, mettreAJourInfosAgent } from "../lib/admin";
 
 const AUJOURDHUI = strToDate("2026-11-03");
 
@@ -719,6 +719,33 @@ describe("occupation et synthèse admin", () => {
     d.type = "recuperation";
     const a = agent({ demandes: [d] });
     expect(exportVoeux(registre(a))).toContain(";Récupération;En attente;");
+  });
+
+  it("exporte le calendrier glissant sur 12 mois avec congés et récupérations validés seulement", () => {
+    const conge = demande([{ debut: "2026-11-30", fin: "2026-12-10", jours: 9 }], "valide");
+    const recuperation = demande([{ debut: "2027-05-01", fin: "2027-05-03", jours: 3 }], "valide");
+    recuperation.type = "recuperation";
+    const enAttente = demande([{ debut: "2027-02-01", fin: "2027-02-11", jours: 9 }]);
+    const horsFenetre = demande([{ debut: "2027-11-01", fin: "2027-11-11", jours: 9 }], "valide");
+    const a1 = agent({ demandes: [conge, recuperation, enAttente, horsFenetre] });
+    const a2 = agent({ matricule: "0002", prenom: "Sans", nom: "DEMANDE" });
+
+    const resultat = exportCalendrierPrevisionnel(registre(a1, a2), AUJOURDHUI);
+    const lignes = resultat.trimEnd().split("\r\n");
+    const entete = lignes[0].slice(1).split(";");
+
+    expect(entete).toHaveLength(17);
+    expect(entete.slice(5)).toEqual([
+      "novembre 2026", "décembre 2026", "janvier 2027", "février 2027",
+      "mars 2027", "avril 2027", "mai 2027", "juin 2027",
+      "juillet 2027", "août 2027", "septembre 2027", "octobre 2027"
+    ]);
+    expect(resultat).toContain("Congé du 30/11/2026 au 11/12/2026");
+    expect(resultat).toContain("Récupération du 01/05/2027 au 04/05/2027");
+    expect(resultat).not.toContain("01/02/2027");
+    expect(resultat).not.toContain("01/11/2027");
+    expect(lignes).toHaveLength(3);
+    expect(lignes[2]).toContain("0002;Sans;DEMANDE");
   });
 
   it("neutralise les formules Excel dans l'export", () => {

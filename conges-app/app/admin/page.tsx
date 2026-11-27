@@ -422,6 +422,9 @@ export default function AdminPage() {
               <a href="/api/admin/export?type=agents" className={classesBouton("secondaire", "md")}>
                 <Download className="h-4 w-4" aria-hidden /> Agents (CSV)
               </a>
+              <a href="/api/admin/export?type=calendrier" className={classesBouton("secondaire", "md")}>
+                <Download className="h-4 w-4" aria-hidden /> Calendrier (12 mois, CSV)
+              </a>
               <a href="/api/admin/export?type=registre" className={classesBouton("secondaire", "md")}>
                 <DatabaseBackup className="h-4 w-4" aria-hidden /> Sauvegarde
               </a>

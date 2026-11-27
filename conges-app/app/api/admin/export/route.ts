@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { aujourdhuiUTC, chargerRegistre, dateToStr } from "@/lib/conges";
-import { exportAgents, exportRegistre, exportVoeux } from "@/lib/admin";
+import { exportAgents, exportCalendrierPrevisionnel, exportRegistre, exportVoeux } from "@/lib/admin";
 import { exigerAdmin } from "@/lib/auth";
 import { erreur, refusSession } from "@/lib/api";
 
-/** Téléchargement : ?type=voeux | agents (CSV Excel) | registre (sauvegarde JSON). */
+/** Téléchargement : ?type=voeux | agents | calendrier (CSV Excel) | registre (sauvegarde JSON). */
 export async function GET(req: NextRequest) {
   const session = await exigerAdmin(req);
   if (!session.ok) return refusSession(session);
@@ -23,6 +23,9 @@ export async function GET(req: NextRequest) {
   } else if (type === "agents") {
     contenu = exportAgents(registre, aujourdHui);
     nom = `agents-soldes-${jour}.csv`;
+  } else if (type === "calendrier") {
+    contenu = exportCalendrierPrevisionnel(registre, aujourdHui);
+    nom = `calendrier-previsionnel-${jour}.csv`;
   } else if (type === "registre") {
     contenu = exportRegistre(registre);
     nom = `registre-conges-${jour}.json`;
